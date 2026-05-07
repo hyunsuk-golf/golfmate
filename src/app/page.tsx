@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase";
 
 const PARTICIPANT_OPTIONS = [2, 3, 4, 5, 6, 7, 8];
 
@@ -44,10 +46,23 @@ export default function Home() {
   const [accountNumber, setAccountNumber] = useState("");
   const [copied, setCopied] = useState(false);
   const [todayStr, setTodayStr] = useState("");
+  const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
     setTodayStr(getKoreanDate());
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        setUserName(user.user_metadata?.name ?? user.email ?? null);
+      }
+    });
   }, []);
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setUserName(null);
+  }
 
   const totalAmount =
     parseNumber(costs.greenfee) +
@@ -102,13 +117,41 @@ export default function Home() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#F8F9FA]">
+    <main className="min-h-screen bg-[#F8F9FA] pb-24">
       <div className="max-w-md mx-auto px-4 py-6 flex flex-col gap-5">
 
         {/* 헤더 */}
-        <header className="bg-[#1B4332] rounded-2xl px-6 py-5 text-white text-center">
-          <h1 className="text-2xl font-bold tracking-tight">⛳ GolfMate</h1>
-          <p className="text-sm text-white/80 mt-1">골프 약속과 정산, 카톡보다 쉽게.</p>
+        <header className="bg-[#1B4332] rounded-2xl px-6 py-5 text-white">
+          <div className="flex items-center justify-between mb-1">
+            <h1 className="text-2xl font-bold tracking-tight">⛳ GolfMate</h1>
+            {userName ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-white/70">{userName}</span>
+                <button
+                  onClick={handleLogout}
+                  className="text-xs text-white/60 hover:text-white border border-white/30 px-2 py-1 rounded-lg transition-colors"
+                >
+                  로그아웃
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/auth/login"
+                className="text-xs text-white/60 hover:text-white border border-white/30 px-2 py-1 rounded-lg transition-colors"
+              >
+                로그인
+              </Link>
+            )}
+          </div>
+          <p className="text-sm text-white/80">골프 약속과 정산, 카톡보다 쉽게.</p>
+          {userName && (
+            <Link
+              href="/rounding/new"
+              className="inline-block mt-3 bg-[#B7791F] hover:bg-[#9a6519] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+            >
+              + 새 라운딩 만들기
+            </Link>
+          )}
         </header>
 
         {/* 참석자 수 선택 */}
