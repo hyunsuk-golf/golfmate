@@ -84,19 +84,15 @@ export default function RoundingDetailPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/auth/login"); return; }
 
-      const { data: r } = await supabase
-        .from("roundings")
-        .select("*")
-        .eq("id", id)
-        .single();
+      const [{ data: r }, { data: s }, { data: profile }] = await Promise.all([
+        supabase.from("roundings").select("*").eq("id", id).single(),
+        supabase.from("settlements").select("*").eq("rounding_id", id).maybeSingle(),
+        supabase.from("profiles").select("name, account_number").eq("id", user.id).maybeSingle(),
+      ]);
+
       if (!r) { router.push("/my-roundings"); return; }
       setRounding(r);
 
-      const { data: s } = await supabase
-        .from("settlements")
-        .select("*")
-        .eq("rounding_id", id)
-        .maybeSingle();
       if (s) {
         setSettlement(s);
         setCosts({
@@ -108,6 +104,10 @@ export default function RoundingDetailPage() {
         });
         setPayerName(s.payer_name ?? "");
         setAccountNumber(s.account_number ?? "");
+      } else if (profile?.account_number) {
+        // 저장된 정산 없을 때 프로필 계좌번호 자동 입력
+        setPayerName(profile.name ?? "");
+        setAccountNumber(profile.account_number);
       }
       setLoading(false);
     }

@@ -1,11 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 
 const REGIONS = ["수도권", "강원", "충청", "전라", "경상", "제주", "기타"];
+
+interface SavedMember {
+  id: string;
+  name: string;
+}
 
 export default function NewRoundingPage() {
   const router = useRouter();
@@ -18,6 +23,23 @@ export default function NewRoundingPage() {
   const [memo, setMemo] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [savedMembers, setSavedMembers] = useState<SavedMember[]>([]);
+  const [showMatchingAlert, setShowMatchingAlert] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/auth/login"); return; }
+      const { data } = await supabase
+        .from("members")
+        .select("id, name")
+        .eq("user_id", user.id)
+        .order("name");
+      setSavedMembers(data ?? []);
+    }
+    load();
+  }, [router]);
 
   function handlePlayerCountChange(count: number) {
     setPlayerCount(count);
@@ -35,6 +57,20 @@ export default function NewRoundingPage() {
       return next;
     });
   }
+
+  function addMemberToPlayers(memberName: string) {
+    const alreadyAdded = players.some((p) => p.trim() === memberName);
+    if (alreadyAdded) return;
+    const firstEmpty = players.findIndex((p) => !p.trim());
+    if (firstEmpty === -1) return;
+    handlePlayerName(firstEmpty, memberName);
+  }
+
+  function isMemberAdded(memberName: string) {
+    return players.some((p) => p.trim() === memberName);
+  }
+
+  const emptySlots = players.filter((p) => !p.trim()).length;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -158,6 +194,36 @@ export default function NewRoundingPage() {
                 ))}
               </div>
             </div>
+
+            {savedMembers.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <label className="text-xs text-gray-500">저장된 멤버에서 추가</label>
+                <div className="flex flex-wrap gap-2">
+                  {savedMembers.map((m) => {
+                    const added = isMemberAdded(m.name);
+                    const slotsFull = emptySlots === 0;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => addMemberToPlayers(m.name)}
+                        disabled={added || slotsFull}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                          added
+                            ? "bg-[#1B4332] text-white border-[#1B4332] opacity-60"
+                            : slotsFull
+                            ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                            : "bg-[#F0F9F4] text-[#1B4332] border-[#2D6A4F] hover:bg-[#1B4332] hover:text-white"
+                        }`}
+                      >
+                        {added ? "✓ " : ""}{m.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col gap-2">
               <label className="text-xs text-gray-500">참석자 이름 (선택)</label>
               {players.map((name, i) => (
@@ -170,6 +236,17 @@ export default function NewRoundingPage() {
                   className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
                 />
               ))}
+            </div>
+
+            {/* 멤버 부족 버튼 */}
+            <div className="border-t border-gray-100 pt-3">
+              <button
+                type="button"
+                onClick={() => setShowMatchingAlert(true)}
+                className="w-full border border-dashed border-[#2D6A4F] text-[#2D6A4F] text-sm font-medium py-2.5 rounded-xl hover:bg-[#F0F9F4] transition-colors"
+              >
+                🔍 멤버가 부족한가요?
+              </button>
             </div>
           </section>
 
@@ -195,6 +272,32 @@ export default function NewRoundingPage() {
           </button>
         </form>
       </div>
+
+      {/* 멤버 매칭 준비 중 알림 모달 */}
+      {showMatchingAlert && (
+        <div
+          className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center p-4"
+          onClick={() => setShowMatchingAlert(false)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 w-full max-w-md text-center flex flex-col gap-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-4xl">🏌️</div>
+            <h2 className="text-lg font-bold text-[#1F2937]">매칭 기능 준비 중!</h2>
+            <p className="text-sm text-gray-500">
+              함께 칠 멤버를 찾아주는 매칭 기능을 준비하고 있어요.<br />
+              빠른 시일 내에 만나요! 기대해주세요 🎉
+            </p>
+            <button
+              onClick={() => setShowMatchingAlert(false)}
+              className="w-full bg-[#1B4332] text-white font-semibold py-3 rounded-xl text-sm mt-1"
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

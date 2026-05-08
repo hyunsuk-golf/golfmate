@@ -2,7 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase";
+
+interface Stats {
+  total: number;
+  thisMonth: number;
+  nextRounding: { golf_course: string; date: string } | null;
+}
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr);
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+}
 
 export default function MyPage() {
   const router = useRouter();
@@ -13,6 +26,7 @@ export default function MyPage() {
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState("");
+  const [stats, setStats] = useState<Stats>({ total: 0, thisMonth: 0, nextRounding: null });
 
   useEffect(() => {
     async function load() {
@@ -30,6 +44,36 @@ export default function MyPage() {
         setName(profile.name ?? "");
         setAccountNumber(profile.account_number ?? "");
       }
+
+      const today = new Date().toISOString().split("T")[0];
+      const firstOfMonth = today.slice(0, 7) + "-01";
+      const lastOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
+        .toISOString()
+        .split("T")[0];
+
+      const [{ count: total }, { count: thisMonth }, { data: nextData }] = await Promise.all([
+        supabase.from("roundings").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+        supabase
+          .from("roundings")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .gte("date", firstOfMonth)
+          .lte("date", lastOfMonth),
+        supabase
+          .from("roundings")
+          .select("golf_course, date")
+          .eq("user_id", user.id)
+          .gte("date", today)
+          .order("date", { ascending: true })
+          .limit(1),
+      ]);
+
+      setStats({
+        total: total ?? 0,
+        thisMonth: thisMonth ?? 0,
+        nextRounding: nextData?.[0] ?? null,
+      });
+
       setLoading(false);
     }
     load();
@@ -71,6 +115,52 @@ export default function MyPage() {
           <p className="text-sm text-white/70 mt-1">{email}</p>
         </header>
 
+        {/* 라운딩 통계 */}
+        <section className="bg-white rounded-2xl shadow-sm p-5">
+          <p className="text-sm font-semibold text-[#1F2937] mb-3">📊 나의 라운딩 통계</p>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="bg-[#F0F9F4] rounded-xl p-3 text-center">
+              <p className="text-2xl font-bold text-[#1B4332]">{stats.total}</p>
+              <p className="text-xs text-gray-500 mt-0.5">총 라운딩</p>
+            </div>
+            <div className="bg-[#FFF8EC] rounded-xl p-3 text-center">
+              <p className="text-2xl font-bold text-[#B7791F]">{stats.thisMonth}</p>
+              <p className="text-xs text-gray-500 mt-0.5">이번 달</p>
+            </div>
+          </div>
+          {stats.nextRounding ? (
+            <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-400">다음 라운딩</p>
+                <p className="text-sm font-bold text-[#1F2937] mt-0.5">{stats.nextRounding.golf_course}</p>
+              </div>
+              <span className="text-xs text-[#2D6A4F] font-medium">{formatDate(stats.nextRounding.date)}</span>
+            </div>
+          ) : (
+            <div className="bg-gray-50 rounded-xl px-4 py-3 text-center">
+              <p className="text-xs text-gray-400">예정된 라운딩이 없습니다</p>
+            </div>
+          )}
+        </section>
+
+        {/* 멤버 관리 */}
+        <Link
+          href="/members"
+          className="bg-white rounded-2xl shadow-sm p-5 flex items-center justify-between hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#F0F9F4] rounded-xl flex items-center justify-center text-lg">
+              👥
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[#1F2937]">멤버 관리</p>
+              <p className="text-xs text-gray-400 mt-0.5">자주 치는 멤버 저장/관리</p>
+            </div>
+          </div>
+          <span className="text-gray-400 text-sm">›</span>
+        </Link>
+
+        {/* 프로필 정보 */}
         <form onSubmit={handleSave} className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4">
           <p className="text-sm font-semibold text-[#1F2937]">프로필 정보</p>
           <div className="flex flex-col gap-1">
@@ -92,6 +182,7 @@ export default function MyPage() {
               placeholder="예: KB 123-456-7890"
               className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
             />
+            <p className="text-xs text-gray-400">저장하면 정산 화면에서 자동으로 입력돼요.</p>
           </div>
           <button
             type="submit"

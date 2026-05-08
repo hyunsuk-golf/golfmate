@@ -20,19 +20,21 @@ export function BottomNav() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  const myHref = isLoggedIn ? "/my" : "/auth/login";
   const items = [
-    { href: "/",              label: "홈",   icon: "🏠" },
-    { href: isLoggedIn ? "/my-roundings" : "/auth/login", label: "라운딩", icon: "⛳" },
-    { href: "/settlement",   label: "정산", icon: "💰" },
-    { href: isLoggedIn ? "/my" : "/auth/login", label: "마이",  icon: "👤" },
+    { href: "/",              label: "홈",   icon: "🏠", activeOn: ["/"] },
+    { href: isLoggedIn ? "/my-roundings" : "/auth/login", label: "라운딩", icon: "⛳", activeOn: ["/my-roundings", "/rounding"] },
+    { href: "/settlement",   label: "정산", icon: "💰", activeOn: ["/settlement"] },
+    { href: myHref, label: "마이", icon: "👤", activeOn: ["/my", "/members"] },
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
       <div className="max-w-md mx-auto flex">
         {items.map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
+          const isActive =
+            pathname === "/" ? item.href === "/"
+            : item.activeOn.some((p) => pathname.startsWith(p));
           return (
             <Link
               key={item.label}

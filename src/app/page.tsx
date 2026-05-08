@@ -9,6 +9,8 @@ interface Rounding {
   id: string;
   golf_course: string;
   date: string;
+  tee_time: string | null;
+  region: string | null;
   player_count: number;
 }
 
@@ -33,7 +35,7 @@ export default function Home() {
         const today = new Date().toISOString().split("T")[0];
         const { data } = await supabase
           .from("roundings")
-          .select("id, golf_course, date, player_count")
+          .select("id, golf_course, date, tee_time, region, player_count")
           .eq("user_id", user.id)
           .gte("date", today)
           .order("date", { ascending: true })
@@ -114,8 +116,18 @@ export default function Home() {
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-bold text-[#1F2937]">{r.golf_course}</p>
-                          <p className="text-xs text-[#2D6A4F] mt-0.5">{formatDate(r.date)}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold text-[#1F2937]">{r.golf_course}</p>
+                            {r.region && (
+                              <span className="text-xs text-[#2D6A4F] bg-[#F0F9F4] px-1.5 py-0.5 rounded-full">
+                                {r.region}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-[#2D6A4F] mt-0.5">
+                            {formatDate(r.date)}
+                            {r.tee_time && ` · ${r.tee_time}`}
+                          </p>
                         </div>
                         <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
                           {r.player_count}명
