@@ -48,28 +48,26 @@ export default function MembersPage() {
     setSaveError("");
     const supabase = createClient();
 
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .upsert({ id: userId }, { onConflict: "id", ignoreDuplicates: true });
-
-    if (profileError) {
-      console.error("[members] profiles upsert error:", profileError);
-      setSaving(false);
-      setSaveError(`[profiles 오류] code: ${profileError.code} / ${profileError.message}`);
-      return;
-    }
-
     const { data, error: insertError } = await supabase
       .from("members")
-      .insert({ user_id: userId, name: name.trim(), phone: phone.trim() || null, notes: notes.trim() || null })
+      .insert({
+        user_id: userId,
+        name: name.trim(),
+        phone: phone.trim() || null,
+        notes: notes.trim() || null,
+      })
       .select()
       .single();
 
     setSaving(false);
 
     if (insertError || !data) {
-      console.error("[members] insert error:", insertError);
-      setSaveError(`[members 오류] code: ${insertError?.code} / ${insertError?.message}`);
+      console.error("[GolfMate] members insert 실패:", JSON.stringify(insertError, null, 2));
+      setSaveError(
+        insertError
+          ? `오류 (${insertError.code}): ${insertError.message}`
+          : "저장 실패: 반환 데이터 없음"
+      );
       return;
     }
 
