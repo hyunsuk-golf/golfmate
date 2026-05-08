@@ -48,12 +48,16 @@ export default function MembersPage() {
     setSaveError("");
     const supabase = createClient();
 
-    // members.user_id가 profiles(id)를 FK 참조하므로,
-    // 마이페이지를 한 번도 저장하지 않은 유저는 profiles row가 없어 insert 실패.
-    // upsert로 profiles row가 없을 때만 생성 (기존 row는 건드리지 않음).
-    await supabase
+    const { error: profileError } = await supabase
       .from("profiles")
       .upsert({ id: userId }, { onConflict: "id", ignoreDuplicates: true });
+
+    if (profileError) {
+      console.error("[members] profiles upsert error:", profileError);
+      setSaving(false);
+      setSaveError(`[profiles 오류] code: ${profileError.code} / ${profileError.message}`);
+      return;
+    }
 
     const { data, error: insertError } = await supabase
       .from("members")
@@ -64,7 +68,8 @@ export default function MembersPage() {
     setSaving(false);
 
     if (insertError || !data) {
-      setSaveError("저장 중 오류가 발생했습니다. 다시 시도해주세요.");
+      console.error("[members] insert error:", insertError);
+      setSaveError(`[members 오류] code: ${insertError?.code} / ${insertError?.message}`);
       return;
     }
 
