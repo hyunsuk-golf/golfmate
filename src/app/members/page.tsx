@@ -21,6 +21,7 @@ export default function MembersPage() {
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [userId, setUserId] = useState("");
 
   useEffect(() => {
@@ -44,18 +45,35 @@ export default function MembersPage() {
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
+    setSaveError("");
     const supabase = createClient();
-    const { data } = await supabase
+
+    // members.user_id가 profiles(id)를 FK 참조하므로,
+    // 마이페이지를 한 번도 저장하지 않은 유저는 profiles row가 없어 insert 실패.
+    // upsert로 profiles row가 없을 때만 생성 (기존 row는 건드리지 않음).
+    await supabase
+      .from("profiles")
+      .upsert({ id: userId }, { onConflict: "id", ignoreDuplicates: true });
+
+    const { data, error: insertError } = await supabase
       .from("members")
       .insert({ user_id: userId, name: name.trim(), phone: phone.trim() || null, notes: notes.trim() || null })
       .select()
       .single();
-    if (data) setMembers((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+
+    setSaving(false);
+
+    if (insertError || !data) {
+      setSaveError("저장 중 오류가 발생했습니다. 다시 시도해주세요.");
+      return;
+    }
+
+    setMembers((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
     setName("");
     setPhone("");
     setNotes("");
+    setSaveError("");
     setShowForm(false);
-    setSaving(false);
   }
 
   async function handleDelete(id: string) {
@@ -98,6 +116,11 @@ export default function MembersPage() {
         {showForm && (
           <form onSubmit={handleAdd} className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-3">
             <p className="text-sm font-semibold text-[#1F2937]">새 멤버 등록</p>
+            {saveError && (
+              <div className="bg-red-50 text-red-600 text-xs rounded-lg px-3 py-2">
+                {saveError}
+              </div>
+            )}
             <input
               type="text"
               value={name}
