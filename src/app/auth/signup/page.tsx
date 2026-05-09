@@ -11,11 +11,13 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isDuplicateEmail, setIsDuplicateEmail] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    setIsDuplicateEmail(false);
     if (password.length < 8) {
       setError("비밀번호는 8자 이상이어야 합니다.");
       return;
@@ -32,7 +34,19 @@ export default function SignupPage() {
       options: { data: { name } },
     });
     if (signUpError) {
-      setError(signUpError.message);
+      const msg = signUpError.message.toLowerCase();
+      if (msg.includes("already") || msg.includes("registered") || msg.includes("email")) {
+        setIsDuplicateEmail(true);
+      } else {
+        setError(signUpError.message);
+      }
+      setLoading(false);
+      return;
+    }
+    // Supabase sometimes returns a user with identities=[] when email is already registered
+    // (when email confirmation is enabled, it silently "succeeds" but doesn't create a real user)
+    if (data.user && data.user.identities && data.user.identities.length === 0) {
+      setIsDuplicateEmail(true);
       setLoading(false);
       return;
     }
@@ -53,6 +67,17 @@ export default function SignupPage() {
         </header>
 
         <form onSubmit={handleSignup} className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4">
+          {isDuplicateEmail && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 flex flex-col gap-1">
+              <p className="text-sm font-semibold text-orange-700">이미 사용 중인 이메일입니다.</p>
+              <p className="text-sm text-orange-600">
+                <Link href="/auth/login" className="font-bold underline">
+                  로그인 페이지로 이동
+                </Link>
+                해주세요.
+              </p>
+            </div>
+          )}
           {error && (
             <div className="bg-red-50 text-red-600 text-sm rounded-lg px-4 py-3">
               {error}

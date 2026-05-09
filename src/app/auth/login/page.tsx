@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [showForgotPw, setShowForgotPw] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetMsg, setResetMsg] = useState("");
+  const [resetSuccess, setResetSuccess] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
@@ -35,6 +36,7 @@ export default function LoginPage() {
   async function handleResetPassword(e: React.FormEvent) {
     e.preventDefault();
     setResetMsg("");
+    setResetSuccess(false);
     setResetLoading(true);
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
@@ -43,8 +45,10 @@ export default function LoginPage() {
     setResetLoading(false);
     if (error) {
       setResetMsg("오류가 발생했습니다. 이메일을 다시 확인해주세요.");
+      setResetSuccess(false);
     } else {
-      setResetMsg("비밀번호 재설정 링크를 이메일로 보냈습니다.");
+      setResetMsg("재설정 링크를 이메일로 보냈습니다.");
+      setResetSuccess(true);
     }
   }
 
@@ -104,20 +108,28 @@ export default function LoginPage() {
           <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4">
             <button
               type="button"
-              onClick={() => { setShowForgotPw(false); setResetMsg(""); setResetEmail(""); }}
+              onClick={() => { setShowForgotPw(false); setResetMsg(""); setResetEmail(""); setResetSuccess(false); }}
               className="text-sm text-gray-400 hover:text-gray-600 text-left"
             >
               ← 로그인으로 돌아가기
             </button>
-            {resetMsg ? (
-              <div className={`text-sm rounded-lg px-4 py-3 ${resetMsg.includes("보냈습니다") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"}`}>
-                {resetMsg}
+
+            {resetSuccess ? (
+              <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-4 flex flex-col gap-1.5">
+                <p className="text-sm font-bold text-green-700">✅ 이메일이 전송되었습니다!</p>
+                <p className="text-sm text-green-700">{resetMsg}</p>
+                <p className="text-xs text-green-600 mt-0.5">받은편지함을 확인해주세요. (스팸함도 확인해보세요)</p>
               </div>
             ) : (
               <form onSubmit={handleResetPassword} className="flex flex-col gap-3">
                 <p className="text-xs text-gray-500">
                   가입한 이메일 주소를 입력하시면 비밀번호 재설정 링크를 보내드립니다.
                 </p>
+                {resetMsg && (
+                  <div className="bg-red-50 text-red-600 text-sm rounded-lg px-4 py-3">
+                    {resetMsg}
+                  </div>
+                )}
                 <input
                   type="email"
                   value={resetEmail}
@@ -138,12 +150,17 @@ export default function LoginPage() {
           </div>
         )}
 
-        <p className="text-center text-sm text-gray-500">
-          계정이 없으신가요?{" "}
-          <Link href="/auth/signup" className="text-[#1B4332] font-semibold underline">
-            회원가입
-          </Link>
-        </p>
+        <div className="flex flex-col gap-1.5 text-center">
+          <p className="text-sm text-gray-500">
+            계정이 없으신가요?{" "}
+            <Link href="/auth/signup" className="text-[#1B4332] font-semibold underline">
+              회원가입
+            </Link>
+          </p>
+          <p className="text-xs text-gray-400">
+            이메일이 기억나지 않으시면 새로 가입해주세요.
+          </p>
+        </div>
       </div>
     </main>
   );
