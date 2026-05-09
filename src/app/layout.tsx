@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { BottomNav } from "@/components/BottomNav";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 
 export const metadata: Metadata = {
   title: "GolfMate — 골프 정산 계산기",
@@ -17,6 +18,7 @@ export default function RootLayout({
       <body className="min-h-full bg-[#F8F9FA]">
         {children}
         <BottomNav />
+        <GoogleAnalytics />
       </body>
     </html>
   );
