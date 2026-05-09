@@ -20,6 +20,8 @@ export function BottomNav() {
     return () => listener.subscription.unsubscribe();
   }, []);
 
+  if (pathname.startsWith("/auth")) return null;
+
   const myHref = isLoggedIn ? "/my" : "/auth/login";
   const items = [
     { href: "/",              label: "홈",   icon: "🏠", activeOn: ["/"] },

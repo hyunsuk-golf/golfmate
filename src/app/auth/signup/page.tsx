@@ -16,6 +16,14 @@ export default function SignupPage() {
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (password.length < 8) {
+      setError("비밀번호는 8자 이상이어야 합니다.");
+      return;
+    }
+    if (!/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+      setError("비밀번호는 영문과 숫자를 모두 포함해야 합니다.");
+      return;
+    }
     setLoading(true);
     const supabase = createClient();
     const { data, error: signUpError } = await supabase.auth.signUp({
@@ -78,9 +86,9 @@ export default function SignupPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="6자 이상 입력"
+              placeholder="8자 이상 영문+숫자 조합"
               required
-              minLength={6}
+              minLength={8}
               className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
             />
           </div>

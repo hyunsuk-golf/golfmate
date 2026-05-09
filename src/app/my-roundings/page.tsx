@@ -38,8 +38,9 @@ export default function MyRoundingsPage() {
   }, [router]);
 
   function formatDate(dateStr: string) {
-    const d = new Date(dateStr);
-    return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+    const d = new Date(dateStr + "T00:00:00");
+    const days = ["일", "월", "화", "수", "목", "금", "토"];
+    return `${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
   }
 
   return (

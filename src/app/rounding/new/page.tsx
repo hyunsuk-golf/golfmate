@@ -273,16 +273,17 @@ export default function NewRoundingPage() {
         </form>
       </div>
 
-      {/* 멤버 매칭 준비 중 알림 모달 */}
+      {/* 멤버 매칭 준비 중 알림 바텀시트 */}
       {showMatchingAlert && (
         <div
-          className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center p-4"
+          className="fixed inset-0 bg-black/40 z-50 flex items-end"
           onClick={() => setShowMatchingAlert(false)}
         >
           <div
-            className="bg-white rounded-2xl p-6 w-full max-w-md text-center flex flex-col gap-3"
+            className="bg-white rounded-t-2xl px-6 pt-5 pb-8 w-full text-center flex flex-col gap-3"
             onClick={(e) => e.stopPropagation()}
           >
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1" />
             <div className="text-4xl">🏌️</div>
             <h2 className="text-lg font-bold text-[#1F2937]">매칭 기능 준비 중!</h2>
             <p className="text-sm text-gray-500">
