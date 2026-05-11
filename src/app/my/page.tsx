@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase";
+import { createClient, SESSION_ONLY_KEY } from "@/lib/supabase";
 
 interface Stats {
   total: number;
@@ -11,10 +11,17 @@ interface Stats {
   nextRounding: { golf_course: string; date: string } | null;
 }
 
+function getLocalDateString(date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
+  const d = new Date(dateStr + "T00:00:00");
   const days = ["일", "월", "화", "수", "목", "금", "토"];
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
 }
 
 export default function MyPage() {
@@ -24,6 +31,7 @@ export default function MyPage() {
   const [accountNumber, setAccountNumber] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState("");
   const [stats, setStats] = useState<Stats>({ total: 0, thisMonth: 0, nextRounding: null });
@@ -35,6 +43,7 @@ export default function MyPage() {
       if (!user) { router.push("/auth/login"); return; }
       setUserId(user.id);
       setEmail(user.email ?? "");
+
       const { data: profile } = await supabase
         .from("profiles")
         .select("name, account_number")
@@ -45,11 +54,12 @@ export default function MyPage() {
         setAccountNumber(profile.account_number ?? "");
       }
 
-      const today = new Date().toISOString().split("T")[0];
-      const firstOfMonth = today.slice(0, 7) + "-01";
-      const lastOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
-        .toISOString()
-        .split("T")[0];
+      // 로컬 시간 기준으로 날짜 계산 (한국 시간 정확도)
+      const now = new Date();
+      const today = getLocalDateString(now);
+      const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const lastOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
       const [{ count: total }, { count: thisMonth }, { data: nextData }] = await Promise.all([
         supabase.from("roundings").select("id", { count: "exact", head: true }).eq("user_id", user.id),
@@ -81,17 +91,26 @@ export default function MyPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!userId) return;
     setSaving(true);
+    setSaveError("");
     const supabase = createClient();
-    await supabase.from("profiles").upsert({ id: userId, name, account_number: accountNumber });
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({ id: userId, name, account_number: accountNumber });
     setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 1500);
+    if (error) {
+      setSaveError("저장에 실패했습니다. 다시 시도해주세요.");
+    } else {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1500);
+    }
   }
 
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
+    sessionStorage.removeItem(SESSION_ONLY_KEY);
     router.push("/");
     router.refresh();
   }
@@ -184,6 +203,9 @@ export default function MyPage() {
             />
             <p className="text-xs text-gray-400">저장하면 정산 화면에서 자동으로 입력돼요.</p>
           </div>
+          {saveError && (
+            <p className="text-xs text-red-500">{saveError}</p>
+          )}
           <button
             type="submit"
             disabled={saving}
