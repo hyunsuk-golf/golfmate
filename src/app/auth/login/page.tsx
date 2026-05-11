@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase";
+import { createClient, SESSION_ONLY_KEY } from "@/lib/supabase";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [rememberMe, setRememberMe] = useState(true);
   const [showForgotPw, setShowForgotPw] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetMsg, setResetMsg] = useState("");
@@ -22,10 +23,16 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
+    if (!rememberMe) {
+      sessionStorage.setItem(SESSION_ONLY_KEY, "1");
+    } else {
+      sessionStorage.removeItem(SESSION_ONLY_KEY);
+    }
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
+      sessionStorage.removeItem(SESSION_ONLY_KEY);
       setError("이메일 또는 비밀번호가 올바르지 않습니다.");
     } else {
       router.push("/");
@@ -96,6 +103,16 @@ export default function LoginPage() {
                 비밀번호 찾기
               </button>
             </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded accent-[#1B4332]"
+              />
+              <span className="text-sm text-[#1F2937]">로그인 상태 유지</span>
+              <span className="text-xs text-gray-400">(브라우저 닫아도 유지)</span>
+            </label>
             <button
               type="submit"
               disabled={loading}

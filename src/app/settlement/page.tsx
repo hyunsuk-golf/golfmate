@@ -162,7 +162,7 @@ export default function SettlementPage() {
     if (payerName || accountNumber) lines.push("");
     if (payerName) lines.push(`선결제자: ${payerName}`);
     if (accountNumber) lines.push(`계좌: ${accountNumber}`);
-    lines.push("", "👉 골프 정산은 GolfMate → golfmate.kr");
+    lines.push("", "👉 골프 정산은 GolfMate → mygolfmate.co.kr");
     return lines.join("\n");
   }
 
@@ -223,12 +223,20 @@ export default function SettlementPage() {
                     />
                     <span className="text-sm text-gray-500 shrink-0">원</span>
                     <button
+                      type="button"
                       onClick={() => togglePanel(key)}
-                      className={`text-xs font-medium px-2 py-1.5 rounded-lg border transition-colors shrink-0 ${
-                        isOpen || isPartial
-                          ? "bg-[#1B4332] text-white border-[#1B4332]"
-                          : "bg-white text-[#2D6A4F] border-[#2D6A4F]"
-                      }`}
+                      style={{
+                        backgroundColor: isOpen || isPartial ? "#1B4332" : "#ffffff",
+                        color: isOpen || isPartial ? "#ffffff" : "#1B4332",
+                        border: `2px solid #1B4332`,
+                        borderRadius: "8px",
+                        padding: "4px 10px",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        whiteSpace: "nowrap",
+                        flexShrink: 0,
+                        cursor: "pointer",
+                      }}
                     >
                       {isOpen ? "접기" : isPartial ? `${alloc!.length}명만` : "일부만"}
                     </button>
@@ -321,38 +329,42 @@ export default function SettlementPage() {
               </div>
             )}
 
-            {totalAmount > 0 && (
-              <div className="mt-4">
-                <div className="flex gap-2 justify-center flex-wrap">
-                  {(["exact", "up", "down"] as RoundingMode[]).map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => setRoundingMode(mode)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                        roundingMode === mode
-                          ? "bg-white text-[#1B4332] border-white"
-                          : "bg-transparent text-white/70 border-white/30 hover:border-white/60"
-                      }`}
-                    >
-                      {ROUNDING_LABELS[mode]}
-                    </button>
-                  ))}
-                </div>
-                {roundingMode !== "exact" && difference !== 0 && (
-                  <p className="text-center text-sm mt-2 font-medium">
-                    {difference > 0 ? (
-                      <span className="text-green-300">
-                        남는 금액 {difference.toLocaleString("ko-KR")}원
-                      </span>
-                    ) : (
-                      <span className="text-red-300">
-                        부족 금액 {Math.abs(difference).toLocaleString("ko-KR")}원
-                      </span>
-                    )}
-                  </p>
-                )}
+            <div className="mt-4">
+              <div className="flex gap-2 justify-center flex-wrap">
+                {(["exact", "up", "down"] as RoundingMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setRoundingMode(mode)}
+                    style={{
+                      backgroundColor: roundingMode === mode ? "#ffffff" : "rgba(255,255,255,0.15)",
+                      color: roundingMode === mode ? "#1B4332" : "#ffffff",
+                      border: `2px solid ${roundingMode === mode ? "#ffffff" : "rgba(255,255,255,0.5)"}`,
+                      borderRadius: "8px",
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {ROUNDING_LABELS[mode]}
+                  </button>
+                ))}
               </div>
-            )}
+              {roundingMode !== "exact" && totalAmount > 0 && difference !== 0 && (
+                <p className="text-center text-sm mt-2 font-medium">
+                  {difference > 0 ? (
+                    <span style={{ color: "#86efac" }}>
+                      남는 금액 {difference.toLocaleString("ko-KR")}원
+                    </span>
+                  ) : (
+                    <span style={{ color: "#fca5a5" }}>
+                      부족 금액 {Math.abs(difference).toLocaleString("ko-KR")}원
+                    </span>
+                  )}
+                </p>
+              )}
+            </div>
           </div>
 
           {payerName && totalAmount > 0 && (
