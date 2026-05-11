@@ -4,6 +4,31 @@ import { useState, useEffect } from "react";
 
 const PARTICIPANT_OPTIONS = [2, 3, 4, 5, 6, 7, 8];
 
+type RoundingMode = "exact" | "up" | "down";
+type CostKey = "greenfee" | "cartfee" | "caddyfee" | "meal" | "etc";
+
+interface Costs {
+  greenfee: string;
+  cartfee: string;
+  caddyfee: string;
+  meal: string;
+  etc: string;
+}
+
+const costFields: { key: CostKey; label: string }[] = [
+  { key: "greenfee", label: "그린피" },
+  { key: "cartfee", label: "카트비" },
+  { key: "caddyfee", label: "캐디피" },
+  { key: "meal", label: "식사비" },
+  { key: "etc", label: "기타" },
+];
+
+const ROUNDING_LABELS: Record<RoundingMode, string> = {
+  exact: "정확히",
+  up: "천원 올림 ★",
+  down: "천원 내림",
+};
+
 function formatNumber(value: string): string {
   const num = value.replace(/[^0-9]/g, "");
   if (!num) return "";
@@ -20,21 +45,13 @@ function getKoreanDate(): string {
   return `${now.getMonth() + 1}월 ${now.getDate()}일 ${days[now.getDay()]}`;
 }
 
-interface Costs {
-  greenfee: string;
-  cartfee: string;
-  caddyfee: string;
-  meal: string;
-  etc: string;
+function initAllocations(): Record<CostKey, number[] | null> {
+  return { greenfee: null, cartfee: null, caddyfee: null, meal: null, etc: null };
 }
 
-const costFields: { key: keyof Costs; label: string }[] = [
-  { key: "greenfee", label: "그린피" },
-  { key: "cartfee", label: "카트비" },
-  { key: "caddyfee", label: "캐디피" },
-  { key: "meal", label: "식사비" },
-  { key: "etc", label: "기타" },
-];
+function initExpanded(): Record<CostKey, boolean> {
+  return { greenfee: false, cartfee: false, caddyfee: false, meal: false, etc: false };
+}
 
 export default function SettlementPage() {
   const [participants, setParticipants] = useState(4);
@@ -45,15 +62,82 @@ export default function SettlementPage() {
   const [accountNumber, setAccountNumber] = useState("");
   const [copied, setCopied] = useState(false);
   const [todayStr, setTodayStr] = useState("");
+  const [roundingMode, setRoundingMode] = useState<RoundingMode>("up");
+  // null = all participants bear this cost; number[] = specific participant indices
+  const [allocations, setAllocations] = useState<Record<CostKey, number[] | null>>(initAllocations());
+  const [expanded, setExpanded] = useState<Record<CostKey, boolean>>(initExpanded());
 
   useEffect(() => { setTodayStr(getKoreanDate()); }, []);
+
+  // Reset allocations/panels when participant count changes
+  useEffect(() => {
+    setAllocations(initAllocations());
+    setExpanded(initExpanded());
+  }, [participants]);
 
   const totalAmount =
     parseNumber(costs.greenfee) + parseNumber(costs.cartfee) +
     parseNumber(costs.caddyfee) + parseNumber(costs.meal) + parseNumber(costs.etc);
-  const perPerson = totalAmount > 0 ? Math.floor(totalAmount / participants) : 0;
 
-  function handleCostChange(field: keyof Costs, value: string) {
+  const hasPartialAllocation = (Object.keys(allocations) as CostKey[]).some(
+    (key) => allocations[key] !== null && allocations[key]!.length < participants
+  );
+
+  function applyRounding(amount: number): number {
+    if (roundingMode === "up") return Math.ceil(amount / 1000) * 1000;
+    if (roundingMode === "down") return Math.floor(amount / 1000) * 1000;
+    return Math.floor(amount);
+  }
+
+  function calculateRawAmounts(): number[] {
+    const amounts: number[] = new Array(participants).fill(0);
+    for (const { key } of costFields) {
+      const fieldAmount = parseNumber(costs[key]);
+      if (fieldAmount === 0) continue;
+      const alloc = allocations[key];
+      const payers = alloc !== null
+        ? alloc.filter((i) => i < participants)
+        : Array.from({ length: participants }, (_, i) => i);
+      if (payers.length === 0) continue;
+      const share = fieldAmount / payers.length;
+      for (const idx of payers) amounts[idx] += share;
+    }
+    return amounts;
+  }
+
+  const rawAmounts = calculateRawAmounts();
+  const roundedAmounts = rawAmounts.map(applyRounding);
+  const perPersonRaw = totalAmount > 0 ? totalAmount / participants : 0;
+  const perPersonRounded = applyRounding(perPersonRaw);
+  const totalCollected = hasPartialAllocation
+    ? roundedAmounts.reduce((s, a) => s + a, 0)
+    : perPersonRounded * participants;
+  const difference = totalCollected - totalAmount;
+
+  function togglePanel(key: CostKey) {
+    const isOpen = expanded[key];
+    setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+    // Initialize allocation with all participants on first open
+    if (!isOpen && allocations[key] === null) {
+      setAllocations((prev) => ({
+        ...prev,
+        [key]: Array.from({ length: participants }, (_, i) => i),
+      }));
+    }
+  }
+
+  function toggleParticipant(key: CostKey, idx: number) {
+    setAllocations((prev) => {
+      const current = prev[key] ?? Array.from({ length: participants }, (_, i) => i);
+      const updated = current.includes(idx)
+        ? current.filter((i) => i !== idx)
+        : [...current, idx].sort((a, b) => a - b);
+      if (updated.length === 0) return prev; // keep at least one
+      return { ...prev, [key]: updated };
+    });
+  }
+
+  function handleCostChange(field: CostKey, value: string) {
     setCosts((prev) => ({ ...prev, [field]: formatNumber(value) }));
   }
 
@@ -62,8 +146,19 @@ export default function SettlementPage() {
       "[GolfMate 정산]",
       `날짜: ${todayStr}`,
       `참석자: ${participants}명 | 총 비용: ${totalAmount.toLocaleString("ko-KR")}원`,
-      `1인당: ${perPerson.toLocaleString("ko-KR")}원`,
     ];
+    if (hasPartialAllocation) {
+      lines.push("1인당 금액:");
+      roundedAmounts.forEach((amount, i) => {
+        lines.push(`  참석자 ${i + 1}: ${amount.toLocaleString("ko-KR")}원`);
+      });
+    } else {
+      lines.push(`1인당: ${perPersonRounded.toLocaleString("ko-KR")}원`);
+      if (roundingMode !== "exact" && difference !== 0) {
+        const abs = Math.abs(difference).toLocaleString("ko-KR");
+        lines.push(difference > 0 ? `남는 금액: ${abs}원` : `부족 금액: ${abs}원`);
+      }
+    }
     if (payerName || accountNumber) lines.push("");
     if (payerName) lines.push(`선결제자: ${payerName}`);
     if (accountNumber) lines.push(`계좌: ${accountNumber}`);
@@ -109,21 +204,62 @@ export default function SettlementPage() {
 
         <section className="bg-white rounded-2xl shadow-sm p-5">
           <p className="text-sm font-semibold text-[#1F2937] mb-3">비용 입력</p>
-          <div className="flex flex-col gap-3">
-            {costFields.map(({ key, label }) => (
-              <div key={key} className="flex items-center gap-3">
-                <label className="w-14 text-sm text-[#1F2937] shrink-0">{label}</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={costs[key]}
-                  onChange={(e) => handleCostChange(key, e.target.value)}
-                  placeholder="0"
-                  className="flex-1 text-right border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
-                />
-                <span className="text-sm text-gray-500 shrink-0 w-4">원</span>
-              </div>
-            ))}
+          <div className="flex flex-col gap-4">
+            {costFields.map(({ key, label }) => {
+              const isOpen = expanded[key];
+              const alloc = allocations[key];
+              const isPartial = alloc !== null && alloc.length < participants;
+              return (
+                <div key={key}>
+                  <div className="flex items-center gap-2">
+                    <label className="w-14 text-sm text-[#1F2937] shrink-0">{label}</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={costs[key]}
+                      onChange={(e) => handleCostChange(key, e.target.value)}
+                      placeholder="0"
+                      className="flex-1 text-right border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
+                    />
+                    <span className="text-sm text-gray-500 shrink-0">원</span>
+                    <button
+                      onClick={() => togglePanel(key)}
+                      className={`text-xs font-medium px-2 py-1.5 rounded-lg border transition-colors shrink-0 ${
+                        isOpen || isPartial
+                          ? "bg-[#1B4332] text-white border-[#1B4332]"
+                          : "bg-white text-[#2D6A4F] border-[#2D6A4F]"
+                      }`}
+                    >
+                      {isOpen ? "접기" : isPartial ? `${alloc!.length}명만` : "일부만"}
+                    </button>
+                  </div>
+
+                  {isOpen && (
+                    <div className="mt-2 ml-16 p-3 bg-[#F0FDF4] rounded-xl border border-[#BBF7D0]">
+                      <p className="text-xs text-[#166534] font-medium mb-2">부담자 선택</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from({ length: participants }, (_, i) => i).map((idx) => {
+                          const checked = alloc?.includes(idx) ?? true;
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => toggleParticipant(key, idx)}
+                              className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                                checked
+                                  ? "bg-[#1B4332] text-white border-[#1B4332]"
+                                  : "bg-white text-[#374151] border-gray-300"
+                              }`}
+                            >
+                              참석자 {idx + 1}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
 
@@ -160,16 +296,68 @@ export default function SettlementPage() {
             <span className="text-sm text-white/70">참석자</span>
             <span className="text-sm font-medium">{participants}명</span>
           </div>
-          <div className="border-t border-white/20 pt-4 text-center">
-            <p className="text-sm text-white/70 mb-1">1인당 금액</p>
-            <p className="text-4xl font-bold text-[#B7791F]">
-              {perPerson > 0 ? `${perPerson.toLocaleString("ko-KR")}원` : "-"}
-            </p>
+
+          <div className="border-t border-white/20 pt-4">
+            {hasPartialAllocation ? (
+              <div>
+                <p className="text-sm text-white/70 mb-3 text-center">개인별 금액</p>
+                <div className="flex flex-col gap-2">
+                  {roundedAmounts.map((amount, i) => (
+                    <div key={i} className="flex justify-between items-center">
+                      <span className="text-sm text-white/80">참석자 {i + 1}</span>
+                      <span className="text-xl font-bold text-[#B7791F]">
+                        {amount.toLocaleString("ko-KR")}원
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-sm text-white/70 mb-1">1인당 금액</p>
+                <p className="text-4xl font-bold text-[#B7791F]">
+                  {perPersonRounded > 0 ? `${perPersonRounded.toLocaleString("ko-KR")}원` : "-"}
+                </p>
+              </div>
+            )}
+
+            {totalAmount > 0 && (
+              <div className="mt-4">
+                <div className="flex gap-2 justify-center flex-wrap">
+                  {(["exact", "up", "down"] as RoundingMode[]).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setRoundingMode(mode)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                        roundingMode === mode
+                          ? "bg-white text-[#1B4332] border-white"
+                          : "bg-transparent text-white/70 border-white/30 hover:border-white/60"
+                      }`}
+                    >
+                      {ROUNDING_LABELS[mode]}
+                    </button>
+                  ))}
+                </div>
+                {roundingMode !== "exact" && difference !== 0 && (
+                  <p className="text-center text-sm mt-2 font-medium">
+                    {difference > 0 ? (
+                      <span className="text-green-300">
+                        남는 금액 {difference.toLocaleString("ko-KR")}원
+                      </span>
+                    ) : (
+                      <span className="text-red-300">
+                        부족 금액 {Math.abs(difference).toLocaleString("ko-KR")}원
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
-          {payerName && perPerson > 0 && (
+
+          {payerName && totalAmount > 0 && (
             <p className="text-center text-sm text-white/80 mt-3">
-              각자 <span className="font-semibold text-white">{payerName}</span>에게{" "}
-              <span className="font-semibold text-white">{perPerson.toLocaleString("ko-KR")}원</span> 입금
+              각자 <span className="font-semibold text-white">{payerName}</span>에게 입금하세요
             </p>
           )}
         </section>
