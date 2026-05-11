@@ -10,7 +10,8 @@ interface Rounding {
   golf_course: string;
   date: string;
   player_count: number;
-  created_at: string;
+  region: string | null;
+  settlements: { id: string }[];
 }
 
 export default function MyRoundingsPage() {
@@ -28,10 +29,10 @@ export default function MyRoundingsPage() {
       }
       const { data } = await supabase
         .from("roundings")
-        .select("id, golf_course, date, player_count, created_at")
+        .select("id, golf_course, date, player_count, region, settlements(id)")
         .eq("user_id", user.id)
         .order("date", { ascending: false });
-      setRoundings(data ?? []);
+      setRoundings((data as Rounding[]) ?? []);
       setLoading(false);
     }
     load();
@@ -40,7 +41,7 @@ export default function MyRoundingsPage() {
   function formatDate(dateStr: string) {
     const d = new Date(dateStr + "T00:00:00");
     const days = ["일", "월", "화", "수", "목", "금", "토"];
-    return `${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+    return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
   }
 
   return (
@@ -75,19 +76,39 @@ export default function MyRoundingsPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            {roundings.map((r) => (
-              <button
-                key={r.id}
-                onClick={() => router.push(`/rounding/${r.id}`)}
-                className="bg-white rounded-2xl shadow-sm p-5 text-left w-full hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h2 className="text-base font-bold text-[#1F2937]">{r.golf_course}</h2>
-                  <span className="text-xs text-gray-400">{r.player_count}명</span>
-                </div>
-                <p className="text-sm text-[#2D6A4F] font-medium">{formatDate(r.date)}</p>
-              </button>
-            ))}
+            {roundings.map((r) => {
+              const hasSettlement = r.settlements?.length > 0;
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => router.push(`/rounding/${r.id}`)}
+                  className="bg-white rounded-2xl shadow-sm p-5 text-left w-full hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between mb-1.5">
+                    <h2 className="text-base font-bold text-[#1F2937] leading-snug">{r.golf_course}</h2>
+                    <span
+                      className={`text-xs font-semibold px-2 py-0.5 rounded-full ml-2 shrink-0 ${
+                        hasSettlement
+                          ? "bg-[#D1FAE5] text-[#065F46]"
+                          : "bg-gray-100 text-gray-400"
+                      }`}
+                    >
+                      {hasSettlement ? "정산 완료" : "정산 전"}
+                    </span>
+                  </div>
+                  <p className="text-sm text-[#2D6A4F] font-medium">{formatDate(r.date)}</p>
+                  <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-400">
+                    <span>{r.player_count}명</span>
+                    {r.region && (
+                      <>
+                        <span>·</span>
+                        <span>{r.region}</span>
+                      </>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
