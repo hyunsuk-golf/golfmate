@@ -1,14 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
+import SettlementCard from "./SettlementCard";
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
   const days = ["일", "월", "화", "수", "목", "금", "토"];
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
-}
-
-function formatNum(n: number) {
-  return n > 0 ? n.toLocaleString("ko-KR") + "원" : "-";
 }
 
 export default async function SharePage({
@@ -32,21 +29,23 @@ export default async function SharePage({
   if (!rounding) notFound();
 
   const settlement = rounding.settlements?.[0] ?? null;
+  const formattedDate = formatDate(rounding.date);
 
   return (
-    <main className="min-h-screen bg-[#F8F9FA]">
+    <main className="min-h-screen bg-[#F8F9FA] pb-10">
       <div className="max-w-md mx-auto px-4 py-6 flex flex-col gap-5">
         <header className="bg-[#1B4332] rounded-2xl px-6 py-5 text-white text-center">
           <h1 className="text-2xl font-bold tracking-tight">⛳ GolfMate</h1>
           <p className="text-sm text-white/80 mt-1">라운딩 정산 공유</p>
         </header>
 
+        {/* 라운딩 정보 */}
         <section className="bg-white rounded-2xl shadow-sm p-5">
           <h2 className="text-lg font-bold text-[#1B4332] mb-3">{rounding.golf_course}</h2>
           <div className="flex flex-col gap-2 text-sm text-[#1F2937]">
             <div className="flex justify-between">
               <span className="text-gray-500">날짜</span>
-              <span className="font-medium">{formatDate(rounding.date)}</span>
+              <span className="font-medium">{formattedDate}</span>
             </div>
             {rounding.tee_time && (
               <div className="flex justify-between">
@@ -79,66 +78,15 @@ export default async function SharePage({
           )}
         </section>
 
+        {/* 정산 정보 (클라이언트 컴포넌트) */}
         {settlement ? (
-          <section className="bg-[#1B4332] rounded-2xl p-5 text-white">
-            <p className="text-sm font-semibold text-white/80 mb-4">정산 내역</p>
-            <div className="flex flex-col gap-2 mb-4">
-              {settlement.green_fee > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/70">그린피</span>
-                  <span>{formatNum(settlement.green_fee)}</span>
-                </div>
-              )}
-              {settlement.cart_fee > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/70">카트비</span>
-                  <span>{formatNum(settlement.cart_fee)}</span>
-                </div>
-              )}
-              {settlement.caddie_fee > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/70">캐디피</span>
-                  <span>{formatNum(settlement.caddie_fee)}</span>
-                </div>
-              )}
-              {settlement.meal_fee > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/70">식사비</span>
-                  <span>{formatNum(settlement.meal_fee)}</span>
-                </div>
-              )}
-              {settlement.other_fee > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/70">기타</span>
-                  <span>{formatNum(settlement.other_fee)}</span>
-                </div>
-              )}
-            </div>
-            <div className="border-t border-white/20 pt-4 text-center">
-              <p className="text-sm text-white/70 mb-1">1인당 금액</p>
-              <p className="text-4xl font-bold text-[#B7791F]">
-                {settlement.per_person > 0
-                  ? `${settlement.per_person.toLocaleString("ko-KR")}원`
-                  : "-"}
-              </p>
-            </div>
-            {settlement.payer_name && settlement.per_person > 0 && (
-              <div className="mt-4 pt-4 border-t border-white/20 text-center">
-                <p className="text-sm text-white/80">
-                  각자 <span className="font-bold text-white">{settlement.payer_name}</span>에게{" "}
-                  <span className="font-bold text-white">
-                    {settlement.per_person.toLocaleString("ko-KR")}원
-                  </span>{" "}
-                  입금해주세요
-                </p>
-                {settlement.account_number && (
-                  <p className="text-sm text-[#B7791F] font-semibold mt-2">
-                    {settlement.account_number}
-                  </p>
-                )}
-              </div>
-            )}
-          </section>
+          <SettlementCard
+            settlement={settlement}
+            playerCount={rounding.player_count}
+            players={rounding.players ?? []}
+            golfCourse={rounding.golf_course}
+            formattedDate={formattedDate}
+          />
         ) : (
           <section className="bg-white rounded-2xl shadow-sm p-5 text-center">
             <p className="text-gray-400 text-sm">아직 정산 정보가 입력되지 않았습니다.</p>
