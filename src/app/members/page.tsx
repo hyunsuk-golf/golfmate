@@ -121,7 +121,8 @@ export default function MembersPage() {
     setEditingId(null);
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(id: string, memberName: string) {
+    if (!window.confirm(`${memberName} 멤버를 삭제할까요?`)) return;
     const supabase = createClient();
     await supabase.from("members").delete().eq("id", id);
     setMembers((prev) => prev.filter((m) => m.id !== id));
@@ -250,15 +251,15 @@ export default function MembersPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-full bg-[#F0F9F4] flex items-center justify-center text-[#1B4332] font-bold text-sm shrink-0">
-                        {m.name[0]}
+                        {m.name?.[0] ?? "?"}
                       </div>
-                      <div>
-                        <p className="text-sm font-bold text-[#1F2937]">{m.name}</p>
-                        {m.phone && <p className="text-xs text-gray-400 mt-0.5">📞 {m.phone}</p>}
-                        {m.notes && <p className="text-xs text-gray-400 mt-0.5">💬 {m.notes}</p>}
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-[#1F2937] truncate">{m.name}</p>
+                        {m.phone && <p className="text-xs text-gray-400 mt-0.5 truncate">📞 {m.phone}</p>}
+                        {m.notes && <p className="text-xs text-gray-400 mt-0.5 truncate">💬 {m.notes}</p>}
                       </div>
                     </div>
                     <div className="flex gap-2 shrink-0">
@@ -269,7 +270,7 @@ export default function MembersPage() {
                         수정
                       </button>
                       <button
-                        onClick={() => handleDelete(m.id)}
+                        onClick={() => handleDelete(m.id, m.name)}
                         className="text-red-400 hover:text-red-600 text-xs px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 transition-colors"
                       >
                         삭제

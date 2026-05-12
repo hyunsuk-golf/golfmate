@@ -410,7 +410,7 @@ export default function SettlementPage() {
         {/* 카톡 공유 문구 */}
         <section className="bg-gray-100 rounded-2xl p-5">
           <p className="text-sm font-semibold text-[#1F2937] mb-3">카톡 공유 문구</p>
-          <div className="bg-white rounded-xl p-4 text-sm text-[#1F2937] whitespace-pre-wrap font-mono leading-relaxed border border-gray-200">
+          <div className="bg-white rounded-xl p-4 text-sm text-[#1F2937] whitespace-pre-wrap font-mono leading-relaxed border border-gray-200 break-words">
             {buildShareText()}
           </div>
           <button
