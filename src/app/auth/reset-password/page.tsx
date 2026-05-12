@@ -78,9 +78,14 @@ export default function ResetPasswordPage() {
   return (
     <main className="min-h-screen bg-[#F8F9FA]">
       <div className="max-w-md mx-auto px-4 py-6 flex flex-col gap-5">
-        <header className="bg-[#1B4332] rounded-2xl px-6 py-5 text-white text-center">
-          <h1 className="text-2xl font-bold tracking-tight">⛳ GolfMate</h1>
-          <p className="text-sm text-white/80 mt-1">비밀번호 재설정</p>
+        <header className="bg-[#1B4332] rounded-2xl px-6 py-5 text-white">
+          <div className="flex items-center gap-3 mb-3">
+            <Link href="/auth/login" className="text-white/70 hover:text-white text-sm">← 뒤로</Link>
+          </div>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold tracking-tight">⛳ GolfMate</h1>
+            <p className="text-sm text-white/80 mt-1">비밀번호 재설정</p>
+          </div>
         </header>
 
         <div className="bg-white rounded-2xl shadow-sm p-5">
