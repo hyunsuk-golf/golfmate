@@ -24,6 +24,12 @@ export default function MembersPage() {
   const [saveError, setSaveError] = useState("");
   const [userId, setUserId] = useState("");
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
   useEffect(() => {
     async function load() {
       const supabase = createClient();
@@ -77,6 +83,42 @@ export default function MembersPage() {
     setNotes("");
     setSaveError("");
     setShowForm(false);
+  }
+
+  function startEdit(member: Member) {
+    setEditingId(member.id);
+    setEditName(member.name);
+    setEditPhone(member.phone ?? "");
+    setEditNotes(member.notes ?? "");
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  async function handleUpdate(id: string) {
+    if (!editName.trim()) return;
+    setEditSaving(true);
+    const supabase = createClient();
+    await supabase
+      .from("members")
+      .update({
+        name: editName.trim(),
+        phone: editPhone.trim() || null,
+        notes: editNotes.trim() || null,
+      })
+      .eq("id", id);
+    setMembers((prev) =>
+      prev
+        .map((m) =>
+          m.id === id
+            ? { ...m, name: editName.trim(), phone: editPhone.trim() || null, notes: editNotes.trim() || null }
+            : m
+        )
+        .sort((a, b) => a.name.localeCompare(b.name))
+    );
+    setEditSaving(false);
+    setEditingId(null);
   }
 
   async function handleDelete(id: string) {
@@ -144,7 +186,7 @@ export default function MembersPage() {
               type="text"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="메모 (선택, 예: 핸디 12)"
+              placeholder="핸디, 타수, 관계 등 자유롭게 입력"
               className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
             />
             <button
@@ -166,26 +208,75 @@ export default function MembersPage() {
           <div className="flex flex-col gap-3">
             <p className="text-xs text-gray-400 px-1">총 {members.length}명</p>
             {members.map((m) => (
-              <div
-                key={m.id}
-                className="bg-white rounded-2xl shadow-sm p-4 flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-[#F0F9F4] flex items-center justify-center text-[#1B4332] font-bold text-sm">
-                    {m.name[0]}
+              <div key={m.id} className="bg-white rounded-2xl shadow-sm p-4">
+                {editingId === m.id ? (
+                  <div className="flex flex-col gap-2">
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="이름 *"
+                      autoFocus
+                      className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
+                    />
+                    <input
+                      type="text"
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(e.target.value)}
+                      placeholder="연락처 (선택)"
+                      className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
+                    />
+                    <input
+                      type="text"
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                      placeholder="핸디, 타수, 관계 등 자유롭게 입력"
+                      className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
+                    />
+                    <div className="flex gap-2 mt-1">
+                      <button
+                        onClick={() => handleUpdate(m.id)}
+                        disabled={editSaving || !editName.trim()}
+                        className="flex-1 bg-[#1B4332] hover:bg-[#2D6A4F] disabled:opacity-50 text-white font-semibold py-2 rounded-lg text-sm transition-colors"
+                      >
+                        {editSaving ? "저장 중..." : "저장"}
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-2 rounded-lg text-sm transition-colors"
+                      >
+                        취소
+                      </button>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold text-[#1F2937]">{m.name}</p>
-                    {m.phone && <p className="text-xs text-gray-400 mt-0.5">📞 {m.phone}</p>}
-                    {m.notes && <p className="text-xs text-gray-400 mt-0.5">💬 {m.notes}</p>}
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-[#F0F9F4] flex items-center justify-center text-[#1B4332] font-bold text-sm shrink-0">
+                        {m.name[0]}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-[#1F2937]">{m.name}</p>
+                        {m.phone && <p className="text-xs text-gray-400 mt-0.5">📞 {m.phone}</p>}
+                        {m.notes && <p className="text-xs text-gray-400 mt-0.5">💬 {m.notes}</p>}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => startEdit(m)}
+                        className="text-[#2D6A4F] hover:text-[#1B4332] text-xs px-3 py-1.5 rounded-lg border border-[#2D6A4F] hover:bg-[#F0F9F4] transition-colors"
+                      >
+                        수정
+                      </button>
+                      <button
+                        onClick={() => handleDelete(m.id)}
+                        className="text-red-400 hover:text-red-600 text-xs px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 transition-colors"
+                      >
+                        삭제
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <button
-                  onClick={() => handleDelete(m.id)}
-                  className="text-red-400 hover:text-red-600 text-xs px-3 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 transition-colors shrink-0"
-                >
-                  삭제
-                </button>
+                )}
               </div>
             ))}
           </div>

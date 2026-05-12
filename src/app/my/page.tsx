@@ -7,8 +7,8 @@ import { createClient, SESSION_ONLY_KEY } from "@/lib/supabase";
 
 interface Stats {
   total: number;
-  thisMonth: number;
-  nextRounding: { golf_course: string; date: string } | null;
+  unsettled: number;
+  nextRounding: { id: string; golf_course: string; date: string } | null;
 }
 
 function getLocalDateString(date = new Date()): string {
@@ -34,7 +34,7 @@ export default function MyPage() {
   const [saveError, setSaveError] = useState("");
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState("");
-  const [stats, setStats] = useState<Stats>({ total: 0, thisMonth: 0, nextRounding: null });
+  const [stats, setStats] = useState<Stats>({ total: 0, unsettled: 0, nextRounding: null });
 
   useEffect(() => {
     async function load() {
@@ -54,36 +54,36 @@ export default function MyPage() {
         setAccountNumber(profile.account_number ?? "");
       }
 
-      // 로컬 시간 기준으로 날짜 계산 (한국 시간 정확도)
       const now = new Date();
       const today = getLocalDateString(now);
-      const firstOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const lastOfMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
 
-      const [{ count: total }, { count: thisMonth }, { data: nextData }] = await Promise.all([
-        supabase.from("roundings").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      const [{ data: allRoundings }, { data: nextData }] = await Promise.all([
+        supabase.from("roundings").select("id").eq("user_id", user.id),
         supabase
           .from("roundings")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .gte("date", firstOfMonth)
-          .lte("date", lastOfMonth),
-        supabase
-          .from("roundings")
-          .select("golf_course, date")
+          .select("id, golf_course, date")
           .eq("user_id", user.id)
           .gte("date", today)
           .order("date", { ascending: true })
           .limit(1),
       ]);
 
-      setStats({
-        total: total ?? 0,
-        thisMonth: thisMonth ?? 0,
-        nextRounding: nextData?.[0] ?? null,
-      });
+      const allIds = (allRoundings ?? []).map((r: { id: string }) => r.id);
+      const total = allIds.length;
 
+      let unsettled = 0;
+      if (allIds.length > 0) {
+        const { data: settledData } = await supabase
+          .from("settlements")
+          .select("rounding_id")
+          .in("rounding_id", allIds);
+        const settledIds = new Set(
+          (settledData ?? []).map((s: { rounding_id: string }) => s.rounding_id)
+        );
+        unsettled = allIds.filter((id: string) => !settledIds.has(id)).length;
+      }
+
+      setStats({ total, unsettled, nextRounding: nextData?.[0] ?? null });
       setLoading(false);
     }
     load();
@@ -142,19 +142,25 @@ export default function MyPage() {
               <p className="text-2xl font-bold text-[#1B4332]">{stats.total}</p>
               <p className="text-xs text-gray-500 mt-0.5">총 라운딩</p>
             </div>
-            <div className="bg-[#FFF8EC] rounded-xl p-3 text-center">
-              <p className="text-2xl font-bold text-[#B7791F]">{stats.thisMonth}</p>
-              <p className="text-xs text-gray-500 mt-0.5">이번 달</p>
-            </div>
+            <Link
+              href="/my-roundings"
+              className="bg-[#FFF8EC] rounded-xl p-3 text-center block"
+            >
+              <p className="text-2xl font-bold text-[#B7791F]">{stats.unsettled}</p>
+              <p className="text-xs text-gray-500 mt-0.5">미정산 라운딩</p>
+            </Link>
           </div>
           {stats.nextRounding ? (
-            <div className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between">
+            <Link
+              href={`/rounding/${stats.nextRounding.id}`}
+              className="bg-gray-50 rounded-xl px-4 py-3 flex items-center justify-between"
+            >
               <div>
                 <p className="text-xs text-gray-400">다음 라운딩</p>
                 <p className="text-sm font-bold text-[#1F2937] mt-0.5">{stats.nextRounding.golf_course}</p>
               </div>
               <span className="text-xs text-[#2D6A4F] font-medium">{formatDate(stats.nextRounding.date)}</span>
-            </div>
+            </Link>
           ) : (
             <div className="bg-gray-50 rounded-xl px-4 py-3 text-center">
               <p className="text-xs text-gray-400">예정된 라운딩이 없습니다</p>

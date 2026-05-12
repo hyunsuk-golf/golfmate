@@ -58,22 +58,26 @@ export default function SettlementPage() {
   const [costs, setCosts] = useState<Costs>({
     greenfee: "", cartfee: "", caddyfee: "", meal: "", etc: "",
   });
+  const [playerNames, setPlayerNames] = useState<string[]>(Array(4).fill(""));
   const [payerName, setPayerName] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [copied, setCopied] = useState(false);
   const [todayStr, setTodayStr] = useState("");
   const [roundingMode, setRoundingMode] = useState<RoundingMode>("up");
-  // null = all participants bear this cost; number[] = specific participant indices
   const [allocations, setAllocations] = useState<Record<CostKey, number[] | null>>(initAllocations());
   const [expanded, setExpanded] = useState<Record<CostKey, boolean>>(initExpanded());
 
   useEffect(() => { setTodayStr(getKoreanDate()); }, []);
 
-  // Reset allocations/panels when participant count changes
   useEffect(() => {
     setAllocations(initAllocations());
     setExpanded(initExpanded());
+    setPlayerNames(Array(participants).fill(""));
   }, [participants]);
+
+  function getParticipantName(i: number): string {
+    return playerNames[i]?.trim() || `참석자 ${i + 1}`;
+  }
 
   const totalAmount =
     parseNumber(costs.greenfee) + parseNumber(costs.cartfee) +
@@ -117,7 +121,6 @@ export default function SettlementPage() {
   function togglePanel(key: CostKey) {
     const isOpen = expanded[key];
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
-    // Initialize allocation with all participants on first open
     if (!isOpen && allocations[key] === null) {
       setAllocations((prev) => ({
         ...prev,
@@ -132,7 +135,7 @@ export default function SettlementPage() {
       const updated = current.includes(idx)
         ? current.filter((i) => i !== idx)
         : [...current, idx].sort((a, b) => a - b);
-      if (updated.length === 0) return prev; // keep at least one
+      if (updated.length === 0) return prev;
       return { ...prev, [key]: updated };
     });
   }
@@ -150,7 +153,7 @@ export default function SettlementPage() {
     if (hasPartialAllocation) {
       lines.push("1인당 금액:");
       roundedAmounts.forEach((amount, i) => {
-        lines.push(`  참석자 ${i + 1}: ${amount.toLocaleString("ko-KR")}원`);
+        lines.push(`  ${getParticipantName(i)}: ${amount.toLocaleString("ko-KR")}원`);
       });
     } else {
       lines.push(`1인당: ${perPersonRounded.toLocaleString("ko-KR")}원`);
@@ -183,6 +186,7 @@ export default function SettlementPage() {
           <p className="text-sm text-white/80 mt-1">로그인 없이 바로 계산하세요</p>
         </header>
 
+        {/* 참석자 수 */}
         <section>
           <p className="text-sm font-semibold text-[#1F2937] mb-2">참석자 수</p>
           <div className="flex flex-wrap gap-2">
@@ -202,6 +206,31 @@ export default function SettlementPage() {
           </div>
         </section>
 
+        {/* 참석자 이름 */}
+        <section className="bg-white rounded-2xl shadow-sm p-5">
+          <p className="text-sm font-semibold text-[#1F2937] mb-1">참석자 이름</p>
+          <p className="text-xs text-gray-400 mb-3">입력 안 하면 &apos;참석자N&apos;으로 표시돼요</p>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+            {Array.from({ length: participants }, (_, i) => (
+              <div key={i} className="flex items-center gap-1.5">
+                <span className="text-xs text-gray-500 shrink-0 w-8">{i + 1}번</span>
+                <input
+                  type="text"
+                  value={playerNames[i] ?? ""}
+                  onChange={(e) => {
+                    const newNames = [...playerNames];
+                    newNames[i] = e.target.value;
+                    setPlayerNames(newNames);
+                  }}
+                  placeholder={`참석자${i + 1}`}
+                  className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* 비용 입력 */}
         <section className="bg-white rounded-2xl shadow-sm p-5">
           <p className="text-sm font-semibold text-[#1F2937] mb-3">비용 입력</p>
           <div className="flex flex-col gap-4">
@@ -210,7 +239,7 @@ export default function SettlementPage() {
               const alloc = allocations[key];
               const isPartial = alloc !== null && alloc.length < participants;
               return (
-                <div key={key}>
+                <div key={key} className="flex flex-col gap-1.5">
                   <div className="flex items-center gap-2">
                     <label className="w-14 text-sm text-[#1F2937] shrink-0">{label}</label>
                     <input
@@ -222,28 +251,21 @@ export default function SettlementPage() {
                       className="flex-1 text-right border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
                     />
                     <span className="text-sm text-gray-500 shrink-0">원</span>
-                    <button
-                      type="button"
-                      onClick={() => togglePanel(key)}
-                      style={{
-                        backgroundColor: isOpen || isPartial ? "#1B4332" : "#ffffff",
-                        color: isOpen || isPartial ? "#ffffff" : "#1B4332",
-                        border: `2px solid #1B4332`,
-                        borderRadius: "8px",
-                        padding: "4px 10px",
-                        fontSize: "12px",
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                        flexShrink: 0,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {isOpen ? "접기" : isPartial ? `${alloc!.length}명만` : "일부만"}
-                    </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => togglePanel(key)}
+                    className={`w-full py-2.5 rounded-lg text-sm font-semibold border-2 transition-colors ${
+                      isOpen || isPartial
+                        ? "bg-[#1B4332] text-white border-[#1B4332]"
+                        : "bg-white text-[#1B4332] border-[#1B4332]"
+                    }`}
+                  >
+                    {isOpen ? "접기" : isPartial ? `${alloc!.length}명만 부담` : "일부만 부담"}
+                  </button>
 
                   {isOpen && (
-                    <div className="mt-2 ml-16 p-3 bg-[#F0FDF4] rounded-xl border border-[#BBF7D0]">
+                    <div className="p-3 bg-[#F0FDF4] rounded-xl border border-[#BBF7D0]">
                       <p className="text-xs text-[#166534] font-medium mb-2">부담자 선택</p>
                       <div className="flex flex-wrap gap-2">
                         {Array.from({ length: participants }, (_, i) => i).map((idx) => {
@@ -252,13 +274,13 @@ export default function SettlementPage() {
                             <button
                               key={idx}
                               onClick={() => toggleParticipant(key, idx)}
-                              className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                                 checked
                                   ? "bg-[#1B4332] text-white border-[#1B4332]"
                                   : "bg-white text-[#374151] border-gray-300"
                               }`}
                             >
-                              참석자 {idx + 1}
+                              {getParticipantName(idx)}
                             </button>
                           );
                         })}
@@ -271,6 +293,7 @@ export default function SettlementPage() {
           </div>
         </section>
 
+        {/* 선결제자 정보 */}
         <section className="bg-white rounded-2xl shadow-sm p-5">
           <p className="text-sm font-semibold text-[#1F2937] mb-3">
             선결제자 정보 <span className="font-normal text-gray-400">(선택)</span>
@@ -293,6 +316,7 @@ export default function SettlementPage() {
           </div>
         </section>
 
+        {/* 결과 카드 */}
         <section className="bg-[#1B4332] rounded-2xl p-5 text-white">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-white/70">총 비용</span>
@@ -312,7 +336,7 @@ export default function SettlementPage() {
                 <div className="flex flex-col gap-2">
                   {roundedAmounts.map((amount, i) => (
                     <div key={i} className="flex justify-between items-center">
-                      <span className="text-sm text-white/80">참석자 {i + 1}</span>
+                      <span className="text-sm text-white/80">{getParticipantName(i)}</span>
                       <span className="text-xl font-bold text-[#B7791F]">
                         {amount.toLocaleString("ko-KR")}원
                       </span>
@@ -367,13 +391,23 @@ export default function SettlementPage() {
             </div>
           </div>
 
-          {payerName && totalAmount > 0 && (
-            <p className="text-center text-sm text-white/80 mt-3">
-              각자 <span className="font-semibold text-white">{payerName}</span>에게 입금하세요
-            </p>
+          {(payerName || accountNumber) && totalAmount > 0 && (
+            <div className="mt-3 text-center">
+              {payerName && (
+                <p className="text-sm text-white/80">
+                  각자 <span className="font-semibold text-white">{payerName}</span>에게 입금하세요
+                </p>
+              )}
+              {accountNumber && (
+                <p className="text-sm font-semibold mt-1 text-[#B7791F]">
+                  💳 {accountNumber}
+                </p>
+              )}
+            </div>
           )}
         </section>
 
+        {/* 카톡 공유 문구 */}
         <section className="bg-gray-100 rounded-2xl p-5">
           <p className="text-sm font-semibold text-[#1F2937] mb-3">카톡 공유 문구</p>
           <div className="bg-white rounded-xl p-4 text-sm text-[#1F2937] whitespace-pre-wrap font-mono leading-relaxed border border-gray-200">

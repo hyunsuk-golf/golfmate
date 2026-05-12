@@ -28,6 +28,8 @@ interface Settlement {
   per_person: number;
   payer_name: string | null;
   account_number: string | null;
+  per_person_amounts?: number[] | null;
+  allocations_data?: Record<CostKey, number[] | null> | null;
 }
 
 type CostKey = "green_fee" | "cart_fee" | "caddie_fee" | "meal_fee" | "other_fee";
@@ -60,7 +62,7 @@ function formatNum(n: number) {
 }
 
 function formatDate(dateStr: string) {
-  const d = new Date(dateStr);
+  const d = new Date(dateStr + "T00:00:00");
   const days = ["일", "월", "화", "수", "목", "금", "토"];
   return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
 }
@@ -89,6 +91,7 @@ export default function RoundingDetailPage() {
   const [accountNumber, setAccountNumber] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
   const [copied, setCopied] = useState(false);
   const [textCopied, setTextCopied] = useState(false);
 
@@ -122,6 +125,9 @@ export default function RoundingDetailPage() {
         });
         setPayerName(s.payer_name ?? "");
         setAccountNumber(s.account_number ?? "");
+        if (s.allocations_data) {
+          setAllocations(s.allocations_data);
+        }
       } else if (profile?.account_number) {
         setPayerName(profile.name ?? "");
         setAccountNumber(profile.account_number);
@@ -204,8 +210,9 @@ export default function RoundingDetailPage() {
   async function handleSaveSettlement() {
     if (!rounding) return;
     setSaving(true);
+    setSaveMsg("");
     const supabase = createClient();
-    const payload = {
+    const payload: Record<string, unknown> = {
       rounding_id: rounding.id,
       green_fee: parseNumber(costs.green_fee),
       cart_fee: parseNumber(costs.cart_fee),
@@ -216,14 +223,29 @@ export default function RoundingDetailPage() {
       per_person: hasPartialAllocation ? Math.floor(totalAmount / playerCount) : perPersonRounded,
       payer_name: payerName || null,
       account_number: accountNumber || null,
+      per_person_amounts: hasPartialAllocation ? roundedAmounts : null,
+      allocations_data: hasPartialAllocation ? allocations : null,
     };
+
+    let error;
     if (settlement) {
-      await supabase.from("settlements").update(payload).eq("id", settlement.id);
+      ({ error } = await supabase.from("settlements").update(payload).eq("id", settlement.id));
     } else {
-      const { data } = await supabase.from("settlements").insert(payload).select().single();
-      setSettlement(data);
+      const { data, error: insertErr } = await supabase
+        .from("settlements")
+        .insert(payload)
+        .select()
+        .single();
+      error = insertErr;
+      if (data) setSettlement(data);
     }
     setSaving(false);
+    if (error) {
+      setSaveMsg("저장 실패: " + error.message);
+    } else {
+      setSaveMsg("✅ 저장 완료!");
+      setTimeout(() => setSaveMsg(""), 2000);
+    }
   }
 
   async function handleCopyShareLink() {
@@ -238,6 +260,7 @@ export default function RoundingDetailPage() {
 
   function buildShareText(): string {
     if (!rounding) return "";
+    const shareUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/share/${rounding.share_token}`;
     const lines = [
       "[GolfMate 정산]",
       `날짜: ${formatDate(rounding.date)}`,
@@ -245,10 +268,8 @@ export default function RoundingDetailPage() {
       `참석자: ${playerCount}명 | 총 비용: ${totalAmount.toLocaleString("ko-KR")}원`,
     ];
     if (hasPartialAllocation) {
-      lines.push("1인당 금액:");
-      roundedAmounts.forEach((amount, i) => {
-        lines.push(`  ${getPlayerName(i)}: ${amount.toLocaleString("ko-KR")}원`);
-      });
+      lines.push("💰 금액이 각자 다릅니다 → 링크에서 확인");
+      lines.push(shareUrl);
     } else {
       lines.push(`1인당: ${perPersonRounded.toLocaleString("ko-KR")}원`);
       if (roundingMode !== "exact" && difference !== 0) {
@@ -331,7 +352,7 @@ export default function RoundingDetailPage() {
               const alloc = allocations[key];
               const isPartial = alloc !== null && alloc.length < playerCount;
               return (
-                <div key={key}>
+                <div key={key} className="flex flex-col gap-1.5">
                   <div className="flex items-center gap-2">
                     <label className="w-14 text-sm text-[#1F2937] shrink-0">{label}</label>
                     <input
@@ -345,28 +366,21 @@ export default function RoundingDetailPage() {
                       className="flex-1 text-right border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
                     />
                     <span className="text-sm text-gray-500 shrink-0">원</span>
-                    <button
-                      type="button"
-                      onClick={() => togglePanel(key)}
-                      style={{
-                        backgroundColor: isOpen || isPartial ? "#1B4332" : "#ffffff",
-                        color: isOpen || isPartial ? "#ffffff" : "#1B4332",
-                        border: "2px solid #1B4332",
-                        borderRadius: "8px",
-                        padding: "4px 10px",
-                        fontSize: "12px",
-                        fontWeight: 600,
-                        whiteSpace: "nowrap",
-                        flexShrink: 0,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {isOpen ? "접기" : isPartial ? `${alloc!.length}명만` : "일부만"}
-                    </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => togglePanel(key)}
+                    className={`w-full py-2.5 rounded-lg text-sm font-semibold border-2 transition-colors ${
+                      isOpen || isPartial
+                        ? "bg-[#1B4332] text-white border-[#1B4332]"
+                        : "bg-white text-[#1B4332] border-[#1B4332]"
+                    }`}
+                  >
+                    {isOpen ? "접기" : isPartial ? `${alloc!.length}명만 부담` : "일부만 부담"}
+                  </button>
 
                   {isOpen && (
-                    <div className="mt-2 ml-16 p-3 bg-[#F0FDF4] rounded-xl border border-[#BBF7D0]">
+                    <div className="p-3 bg-[#F0FDF4] rounded-xl border border-[#BBF7D0]">
                       <p className="text-xs text-[#166534] font-medium mb-2">부담자 선택</p>
                       <div className="flex flex-wrap gap-2">
                         {Array.from({ length: playerCount }, (_, i) => i).map((idx) => {
@@ -376,7 +390,7 @@ export default function RoundingDetailPage() {
                               key={idx}
                               type="button"
                               onClick={() => toggleParticipant(key, idx)}
-                              className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                                 checked
                                   ? "bg-[#1B4332] text-white border-[#1B4332]"
                                   : "bg-white text-[#374151] border-gray-300"
@@ -453,7 +467,6 @@ export default function RoundingDetailPage() {
               </div>
             )}
 
-            {/* 올림/내림 버튼 - 항상 표시 */}
             <div className="mt-4">
               <div className="flex gap-2 justify-center flex-wrap">
                 {(["exact", "up", "down"] as RoundingMode[]).map((mode) => (
@@ -492,10 +505,19 @@ export default function RoundingDetailPage() {
             </div>
           </div>
 
-          {payerName && totalAmount > 0 && (
-            <p className="text-center text-sm text-white/80 mt-3">
-              각자 <span className="font-semibold text-white">{payerName}</span>에게 입금하세요
-            </p>
+          {(payerName || accountNumber) && totalAmount > 0 && (
+            <div className="mt-3 text-center">
+              {payerName && (
+                <p className="text-sm text-white/80">
+                  각자 <span className="font-semibold text-white">{payerName}</span>에게 입금하세요
+                </p>
+              )}
+              {accountNumber && (
+                <p className="text-sm font-semibold mt-1 text-[#B7791F]">
+                  💳 {accountNumber}
+                </p>
+              )}
+            </div>
           )}
         </section>
 
@@ -515,6 +537,11 @@ export default function RoundingDetailPage() {
         </section>
 
         <div className="flex flex-col gap-3">
+          {saveMsg && (
+            <p className={`text-center text-sm font-medium ${saveMsg.startsWith("✅") ? "text-green-600" : "text-red-500"}`}>
+              {saveMsg}
+            </p>
+          )}
           <button
             onClick={handleSaveSettlement}
             disabled={saving}
