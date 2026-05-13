@@ -55,7 +55,7 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight">⛳ GolfMate</h1>
-              <p className="text-sm text-white/80 mt-0.5">골프 약속과 정산, 카톡보다 쉽게.</p>
+              <p className="text-sm text-white/80 mt-0.5">라운딩 정산, 링크 하나로 끝.</p>
             </div>
             {userName ? (
               <span className="text-xs text-white/70 bg-white/10 px-3 py-1.5 rounded-full">
@@ -141,33 +141,29 @@ export default function Home() {
           </>
         ) : (
           <section className="flex flex-col gap-4">
-            <div className="bg-white rounded-2xl shadow-sm p-6 text-center flex flex-col gap-3">
-              <p className="text-base font-bold text-[#1F2937]">로그인하고 더 많은 기능을</p>
-              <p className="text-sm text-gray-500">라운딩 관리, 정산 저장, 링크 공유까지</p>
-              <div className="flex gap-2 justify-center">
+            <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-3">
+              <p className="text-base font-bold text-[#1F2937]">라운딩 정산, 링크 하나로 끝.</p>
+              <p className="text-sm text-gray-500">그린피·카트비·캐디피·식사비를 입력하고 카톡으로 바로 공유하세요.</p>
+              <Link
+                href="/settlement"
+                className="w-full bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-sm font-semibold py-3 rounded-xl text-center transition-colors"
+              >
+                💰 회원가입 없이 정산하기
+              </Link>
+              <div className="flex gap-2">
                 <Link
                   href="/auth/login"
-                  className="bg-[#1B4332] text-white text-sm font-semibold px-5 py-2.5 rounded-xl"
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-[#1F2937] text-sm font-semibold py-2.5 rounded-xl text-center transition-colors"
                 >
                   로그인
                 </Link>
                 <Link
                   href="/auth/signup"
-                  className="bg-gray-100 text-[#1F2937] text-sm font-semibold px-5 py-2.5 rounded-xl"
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-[#1F2937] text-sm font-semibold py-2.5 rounded-xl text-center transition-colors"
                 >
                   회원가입
                 </Link>
               </div>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-sm p-5 text-center">
-              <p className="text-sm text-gray-500 mb-3">로그인 없이 바로 정산 계산</p>
-              <Link
-                href="/settlement"
-                className="inline-block bg-[#B7791F] hover:bg-[#9a6519] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-colors"
-              >
-                💰 정산 계산기 바로가기
-              </Link>
             </div>
           </section>
         )}
