@@ -221,6 +221,15 @@ export default function MyPage() {
           </button>
         </form>
 
+        <a
+          href="https://open.kakao.com/o/gPehlOui"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-semibold py-3 rounded-xl text-sm transition-colors text-center block"
+        >
+          💬 피드백 · 라운딩 메이트 구하기
+        </a>
+
         <button
           onClick={handleLogout}
           className="w-full bg-white border border-red-200 text-red-500 hover:bg-red-50 font-semibold py-3 rounded-xl text-sm transition-colors"
