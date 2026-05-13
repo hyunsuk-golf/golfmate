@@ -1,5 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
+import { createAdminClient } from "@/lib/supabase-admin";
 import SettlementCard from "./SettlementCard";
 
 function formatDate(dateStr: string) {
@@ -15,10 +15,7 @@ export default async function SharePage({
 }) {
   const { token } = await params;
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = createAdminClient();
 
   const { data: rounding } = await supabase
     .from("roundings")
