@@ -5,19 +5,31 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 
+const TERMS_VERSION = "2026-05-13";
+const PRIVACY_VERSION = "2026-05-13";
+
 export default function SignupPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [termsAgreed, setTermsAgreed] = useState(false);
+  const [privacyAgreed, setPrivacyAgreed] = useState(false);
+  const [marketingAgreed, setMarketingAgreed] = useState(false);
   const [error, setError] = useState("");
   const [isDuplicateEmail, setIsDuplicateEmail] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const requiredAgreed = termsAgreed && privacyAgreed;
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setIsDuplicateEmail(false);
+    if (!requiredAgreed) {
+      setError("필수 약관에 동의해야 회원가입이 가능합니다.");
+      return;
+    }
     if (password.length < 8) {
       setError("비밀번호는 8자 이상이어야 합니다.");
       return;
@@ -51,7 +63,28 @@ export default function SignupPage() {
       return;
     }
     if (data.user) {
-      await supabase.from("profiles").upsert({ id: data.user.id, name });
+      const userId = data.user.id;
+      const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : null;
+
+      await supabase.from("profiles").upsert({
+        id: userId,
+        name,
+        terms_agreed: termsAgreed,
+        privacy_agreed: privacyAgreed,
+        marketing_agreed: marketingAgreed,
+        terms_version: TERMS_VERSION,
+        privacy_version: PRIVACY_VERSION,
+      });
+
+      await supabase.from("consent_logs").insert({
+        user_id: userId,
+        terms_agreed: termsAgreed,
+        privacy_agreed: privacyAgreed,
+        marketing_agreed: marketingAgreed,
+        terms_version: TERMS_VERSION,
+        privacy_version: PRIVACY_VERSION,
+        user_agent: userAgent,
+      });
     }
     setLoading(false);
     router.push("/");
@@ -122,9 +155,78 @@ export default function SignupPage() {
               className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
             />
           </div>
+
+          {/* 약관 동의 */}
+          <div className="flex flex-col gap-3 pt-1 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">약관 동의</p>
+
+            <label className="flex items-start gap-3 cursor-pointer min-h-[44px]">
+              <input
+                type="checkbox"
+                checked={termsAgreed}
+                onChange={(e) => {
+                  setTermsAgreed(e.target.checked);
+                  if (error) setError("");
+                }}
+                className="mt-0.5 w-5 h-5 min-w-[20px] accent-[#1B4332] cursor-pointer"
+              />
+              <span className="text-sm text-[#1F2937] leading-relaxed">
+                <span className="text-[#1B4332] font-semibold">[필수]</span>{" "}
+                서비스 이용약관에 동의합니다.{" "}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#1B4332] underline font-medium"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  보기
+                </a>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer min-h-[44px]">
+              <input
+                type="checkbox"
+                checked={privacyAgreed}
+                onChange={(e) => {
+                  setPrivacyAgreed(e.target.checked);
+                  if (error) setError("");
+                }}
+                className="mt-0.5 w-5 h-5 min-w-[20px] accent-[#1B4332] cursor-pointer"
+              />
+              <span className="text-sm text-[#1F2937] leading-relaxed">
+                <span className="text-[#1B4332] font-semibold">[필수]</span>{" "}
+                개인정보 수집 및 이용에 동의합니다.{" "}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#1B4332] underline font-medium"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  보기
+                </a>
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer min-h-[44px]">
+              <input
+                type="checkbox"
+                checked={marketingAgreed}
+                onChange={(e) => setMarketingAgreed(e.target.checked)}
+                className="mt-0.5 w-5 h-5 min-w-[20px] accent-[#1B4332] cursor-pointer"
+              />
+              <span className="text-sm text-[#1F2937] leading-relaxed">
+                <span className="text-gray-500 font-semibold">[선택]</span>{" "}
+                마케팅 정보 수신에 동의합니다.
+              </span>
+            </label>
+          </div>
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !requiredAgreed}
             className="w-full bg-[#1B4332] hover:bg-[#2D6A4F] disabled:opacity-50 text-white font-semibold py-3 rounded-xl text-sm transition-colors"
           >
             {loading ? "가입 중..." : "회원가입"}

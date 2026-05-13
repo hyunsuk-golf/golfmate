@@ -93,6 +93,13 @@ export default async function SharePage({
           </section>
         )}
 
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <p className="text-xs text-amber-800 leading-relaxed text-center">
+            이 링크를 아는 사람은 라운딩 정보와 정산 내용을 확인할 수 있습니다.<br />
+            민감한 정보 입력 및 공유에 유의해주세요.
+          </p>
+        </div>
+
         <footer className="text-center text-xs text-gray-400 py-2">
           GolfMate · 골프 약속과 정산을 쉽게
         </footer>
