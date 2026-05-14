@@ -293,9 +293,20 @@ export default function RoundingDetailPage() {
         lines.push(difference > 0 ? `남는 금액: ${abs}원` : `부족 금액: ${abs}원`);
       }
     }
-    if (payerName || accountNumber) lines.push("");
-    if (payerName) lines.push(`선결제자: ${payerName}`);
-    if (accountNumber) lines.push(`계좌: ${accountNumber}`);
+    if (payerName || (includeAccountInShare && accountNumber)) {
+      lines.push("");
+      if (payerName) {
+        if (includeAccountInShare && accountNumber) {
+          lines.push(`선결제자: ${payerName} / ${accountNumber}`);
+        } else if (accountNumber) {
+          lines.push(`선결제자: ${payerName} (계좌번호는 링크에서 확인)`);
+        } else {
+          lines.push(`선결제자: ${payerName}`);
+        }
+      } else if (includeAccountInShare && accountNumber) {
+        lines.push(`계좌: ${accountNumber}`);
+      }
+    }
     lines.push("", "👉 골프 정산은 GolfMate → mygolfmate.co.kr");
     return lines.join("\n");
   }
@@ -445,17 +456,6 @@ export default function RoundingDetailPage() {
               placeholder="예: KB 123-456-7890"
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
             />
-            <label className="flex items-start gap-2 cursor-pointer pt-1">
-              <input
-                type="checkbox"
-                checked={includeAccountInShare}
-                onChange={(e) => setIncludeAccountInShare(e.target.checked)}
-                className="mt-0.5 accent-[#1B4332]"
-              />
-              <span className="text-xs text-gray-600 leading-relaxed">
-                계좌번호를 공유 페이지에 포함합니다. 링크를 받은 사람이 볼 수 있습니다.
-              </span>
-            </label>
           </div>
         </section>
 
@@ -546,6 +546,24 @@ export default function RoundingDetailPage() {
               )}
             </div>
           )}
+        </section>
+
+        {/* 계좌번호 공유 설정 */}
+        <section className="bg-white rounded-2xl shadow-sm p-5">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={includeAccountInShare}
+              onChange={(e) => setIncludeAccountInShare(e.target.checked)}
+              className="mt-0.5 accent-[#1B4332] w-4 h-4 shrink-0"
+            />
+            <div>
+              <p className="text-sm font-semibold text-[#1F2937]">계좌번호 공유 페이지 포함</p>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                계좌번호를 공유 페이지에 포함합니다. 링크를 받은 사람이 볼 수 있습니다.
+              </p>
+            </div>
+          </label>
         </section>
 
         {/* 카톡 공유 문구 */}
