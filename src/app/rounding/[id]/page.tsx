@@ -15,6 +15,7 @@ interface Rounding {
   players: string[];
   memo: string | null;
   share_token: string;
+  include_account_in_share: boolean;
 }
 
 interface Settlement {
@@ -98,6 +99,7 @@ export default function RoundingDetailPage() {
   const [roundingMode, setRoundingMode] = useState<RoundingMode>("up");
   const [allocations, setAllocations] = useState<Record<CostKey, number[] | null>>(initAllocations());
   const [expanded, setExpanded] = useState<Record<CostKey, boolean>>(initExpanded());
+  const [includeAccountInShare, setIncludeAccountInShare] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -113,6 +115,7 @@ export default function RoundingDetailPage() {
 
       if (!r) { router.push("/my-roundings"); return; }
       setRounding(r);
+      setIncludeAccountInShare(r.include_account_in_share ?? false);
 
       if (s) {
         setSettlement(s);
@@ -212,6 +215,19 @@ export default function RoundingDetailPage() {
     setSaving(true);
     setSaveMsg("");
     const supabase = createClient();
+
+    // include_account_in_share를 roundings에 저장
+    const { error: roundingErr } = await supabase
+      .from("roundings")
+      .update({ include_account_in_share: includeAccountInShare })
+      .eq("id", rounding.id);
+
+    if (roundingErr) {
+      setSaving(false);
+      setSaveMsg("저장 실패: " + roundingErr.message);
+      return;
+    }
+
     const payload: Record<string, unknown> = {
       rounding_id: rounding.id,
       green_fee: parseNumber(costs.green_fee),
@@ -429,6 +445,17 @@ export default function RoundingDetailPage() {
               placeholder="예: KB 123-456-7890"
               className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#2D6A4F]"
             />
+            <label className="flex items-start gap-2 cursor-pointer pt-1">
+              <input
+                type="checkbox"
+                checked={includeAccountInShare}
+                onChange={(e) => setIncludeAccountInShare(e.target.checked)}
+                className="mt-0.5 accent-[#1B4332]"
+              />
+              <span className="text-xs text-gray-600 leading-relaxed">
+                계좌번호를 공유 페이지에 포함합니다. 링크를 받은 사람이 볼 수 있습니다.
+              </span>
+            </label>
           </div>
         </section>
 

@@ -2,6 +2,33 @@ import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase-admin";
 import SettlementCard from "./SettlementCard";
 
+interface SettlementRow {
+  green_fee: number;
+  cart_fee: number;
+  caddie_fee: number;
+  meal_fee: number;
+  other_fee: number;
+  total_fee: number;
+  per_person: number;
+  payer_name: string | null;
+  account_number: string | null;
+  per_person_amounts: number[] | null;
+  allocations_data: Record<string, number[] | null> | null;
+}
+
+interface RoundingRow {
+  golf_course: string;
+  date: string;
+  tee_time: string | null;
+  region: string | null;
+  player_count: number;
+  players: string[] | null;
+  share_enabled: boolean;
+  share_expires_at: string | null;
+  include_account_in_share: boolean;
+  settlements: SettlementRow[];
+}
+
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
   const days = ["일", "월", "화", "수", "목", "금", "토"];
@@ -19,14 +46,44 @@ export default async function SharePage({
 
   const { data: rounding } = await supabase
     .from("roundings")
-    .select("*, settlements(*)")
+    .select(`
+      golf_course,
+      date,
+      tee_time,
+      region,
+      player_count,
+      players,
+      share_enabled,
+      share_expires_at,
+      include_account_in_share,
+      settlements(
+        green_fee,
+        cart_fee,
+        caddie_fee,
+        meal_fee,
+        other_fee,
+        total_fee,
+        per_person,
+        payer_name,
+        account_number,
+        per_person_amounts,
+        allocations_data
+      )
+    `)
     .eq("share_token", token)
+    .eq("share_enabled", true)
     .single();
 
   if (!rounding) notFound();
 
-  const settlement = rounding.settlements?.[0] ?? null;
-  const formattedDate = formatDate(rounding.date);
+  // 만료 시각 체크
+  if (rounding.share_expires_at && new Date(rounding.share_expires_at) < new Date()) {
+    notFound();
+  }
+
+  const typedRounding = rounding as unknown as RoundingRow;
+  const settlement = typedRounding.settlements?.[0] ?? null;
+  const formattedDate = formatDate(typedRounding.date);
 
   return (
     <main className="min-h-screen bg-[#F8F9FA] pb-10">
@@ -38,34 +95,34 @@ export default async function SharePage({
 
         {/* 라운딩 정보 */}
         <section className="bg-white rounded-2xl shadow-sm p-5">
-          <h2 className="text-lg font-bold text-[#1B4332] mb-3">{rounding.golf_course}</h2>
+          <h2 className="text-lg font-bold text-[#1B4332] mb-3">{typedRounding.golf_course}</h2>
           <div className="flex flex-col gap-2 text-sm text-[#1F2937]">
             <div className="flex justify-between">
               <span className="text-gray-500">날짜</span>
               <span className="font-medium">{formattedDate}</span>
             </div>
-            {rounding.tee_time && (
+            {typedRounding.tee_time && (
               <div className="flex justify-between">
                 <span className="text-gray-500">티타임</span>
-                <span className="font-medium">{rounding.tee_time}</span>
+                <span className="font-medium">{typedRounding.tee_time}</span>
               </div>
             )}
-            {rounding.region && (
+            {typedRounding.region && (
               <div className="flex justify-between">
                 <span className="text-gray-500">지역</span>
-                <span className="font-medium">{rounding.region}</span>
+                <span className="font-medium">{typedRounding.region}</span>
               </div>
             )}
             <div className="flex justify-between">
               <span className="text-gray-500">참석자</span>
-              <span className="font-medium">{rounding.player_count}명</span>
+              <span className="font-medium">{typedRounding.player_count}명</span>
             </div>
           </div>
-          {rounding.players?.length > 0 && (
+          {typedRounding.players && typedRounding.players.length > 0 && (
             <div className="mt-3 pt-3 border-t border-gray-100">
               <p className="text-xs text-gray-400 mb-2">참석자 명단</p>
               <div className="flex flex-wrap gap-2">
-                {(rounding.players as string[]).map((p: string, i: number) => (
+                {typedRounding.players.map((p: string, i: number) => (
                   <span key={i} className="bg-[#F0F9F4] text-[#1B4332] text-sm px-3 py-1 rounded-full font-medium">
                     {p}
                   </span>
@@ -79,10 +136,11 @@ export default async function SharePage({
         {settlement ? (
           <SettlementCard
             settlement={settlement}
-            playerCount={rounding.player_count}
-            players={rounding.players ?? []}
-            golfCourse={rounding.golf_course}
+            playerCount={typedRounding.player_count}
+            players={typedRounding.players ?? []}
+            golfCourse={typedRounding.golf_course}
             formattedDate={formattedDate}
+            includeAccount={typedRounding.include_account_in_share}
           />
         ) : (
           <section className="bg-white rounded-2xl shadow-sm p-5 text-center">
