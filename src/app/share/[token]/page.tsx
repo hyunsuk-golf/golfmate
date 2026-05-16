@@ -140,7 +140,6 @@ export default async function SharePage({
             players={typedRounding.players ?? []}
             golfCourse={typedRounding.golf_course}
             formattedDate={formattedDate}
-            includeAccount={typedRounding.include_account_in_share}
           />
         ) : (
           <section className="bg-white rounded-2xl shadow-sm p-5 text-center">

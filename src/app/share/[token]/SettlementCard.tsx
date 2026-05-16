@@ -24,7 +24,6 @@ interface Props {
   players: string[];
   golfCourse: string;
   formattedDate: string;
-  includeAccount: boolean;
 }
 
 const ROUNDING_LABELS: Record<RoundingMode, string> = {
@@ -51,7 +50,6 @@ export default function SettlementCard({
   players,
   golfCourse,
   formattedDate,
-  includeAccount,
 }: Props) {
   const [roundingMode, setRoundingMode] = useState<RoundingMode>("up");
   const [copied, setCopied] = useState(false);
@@ -103,10 +101,9 @@ export default function SettlementCard({
       lines.push(difference > 0 ? `남는 금액: ${abs}원` : `부족 금액: ${abs}원`);
     }
 
-    const showAccount = includeAccount && settlement.account_number;
-    if (settlement.payer_name || showAccount) lines.push("");
+    if (settlement.payer_name || settlement.account_number) lines.push("");
     if (settlement.payer_name) lines.push(`선결제자: ${settlement.payer_name}`);
-    if (showAccount) lines.push(`계좌: ${settlement.account_number}`);
+    if (settlement.account_number) lines.push(`계좌: ${settlement.account_number}`);
     lines.push("", "👉 골프 정산은 GolfMate → mygolfmate.co.kr");
     return lines.join("\n");
   }
@@ -231,15 +228,15 @@ export default function SettlementCard({
           )}
         </div>
 
-        {/* 선결제자 + 계좌 (includeAccount = true일 때만 계좌번호 표시) */}
-        {(settlement.payer_name || (includeAccount && settlement.account_number)) && (
+        {/* 선결제자 + 계좌 */}
+        {(settlement.payer_name || settlement.account_number) && (
           <div className="mt-4 pt-4 border-t border-white/20 text-center">
             {settlement.payer_name && (
               <p className="text-sm text-white/80">
                 각자 <span className="font-bold text-white">{settlement.payer_name}</span>에게 입금해주세요
               </p>
             )}
-            {includeAccount && settlement.account_number && (
+            {settlement.account_number && (
               <p className="text-base text-[#B7791F] font-bold mt-2">
                 💳 {settlement.account_number}
               </p>
