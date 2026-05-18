@@ -55,7 +55,7 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight">⛳ GolfMate</h1>
-              <p className="text-sm text-white/80 mt-0.5">라운딩 정산, 링크 하나로 끝.</p>
+              <p className="text-sm text-white/80 mt-0.5">골프 모임 정산, 카톡보다 깔끔하게.</p>
             </div>
             {userName ? (
               <span className="text-xs text-white/70 bg-white/10 px-3 py-1.5 rounded-full">
@@ -142,13 +142,13 @@ export default function Home() {
         ) : (
           <section className="flex flex-col gap-4">
             <div className="bg-white rounded-2xl shadow-sm p-6 flex flex-col gap-3">
-              <p className="text-base font-bold text-[#1F2937]">라운딩 정산, 링크 하나로 끝.</p>
-              <p className="text-sm text-gray-500">그린피·카트비·캐디피·식사비를 입력하고 카톡으로 바로 공유하세요.</p>
+              <p className="text-base font-bold text-[#1F2937]">골프 모임 정산, 카톡보다 깔끔하게.</p>
+              <p className="text-sm text-gray-500">한 명이 먼저 결제했거나, 비용 부담자가 다를 때<br />정산금액을 자동 계산하고 링크로 공유하세요.</p>
               <Link
                 href="/settlement"
                 className="w-full bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-sm font-semibold py-3 rounded-xl text-center transition-colors"
               >
-                💰 회원가입 없이 정산하기
+                회원가입 없이 정산해보기
               </Link>
               <div className="flex gap-2">
                 <Link
